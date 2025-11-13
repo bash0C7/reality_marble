@@ -1,0 +1,69 @@
+AllCops:
+  TargetRubyVersion: 3.3
+  NewCops: enable
+  Exclude:
+    - "vendor/**/*"
+    - "build/**/*"
+    - ".cache/**/*"
+
+plugins:
+  - rubocop-performance
+  - rubocop-rake
+
+# String style configuration
+Style/StringLiterals:
+  EnforcedStyle: double_quotes
+
+Style/StringLiteralsInInterpolation:
+  EnforcedStyle: double_quotes
+
+# Allow Japanese comments in code
+Style/AsciiComments:
+  Enabled: false
+
+# Disable frozen string literal comment requirement (Ruby 3.4+ default)
+Style/FrozenStringLiteralComment:
+  Enabled: false
+
+# Metrics configuration - pragmatic thresholds for this project
+Metrics/MethodLength:
+  Max: 40
+
+Metrics/ClassLength:
+  Max: 300
+  Exclude:
+    - "test/**/*"
+
+Metrics/AbcSize:
+  Max: 40
+
+Metrics/CyclomaticComplexity:
+  Max: 15
+
+Metrics/PerceivedComplexity:
+  Max: 20
+
+Metrics/ParameterLists:
+  Max: 5
+
+# Test files have deeper nesting due to test setup/teardown structure
+Metrics/BlockLength:
+  Exclude:
+    - "test/**/*"
+    - "reality_marble.gemspec" # Gem specification file with standard DSL structure
+
+# Gemspec configuration - follow picotorokko policy (dependencies in gemspec)
+Gemspec/DevelopmentDependencies:
+  Enabled: false
+
+# Layout configuration
+Layout/LineLength:
+  Max: 120
+  Exclude:
+    - "reality_marble.gemspec" # Long description strings are acceptable
+
+# Documentation configuration
+Style/Documentation:
+  Enabled: true
+  Exclude:
+    - "test/**/*"

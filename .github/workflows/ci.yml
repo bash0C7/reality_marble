@@ -1,0 +1,47 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+
+  pull_request:
+
+jobs:
+  test-matrix:
+    runs-on: ubuntu-latest
+    name: test (${{ matrix.ruby }})
+    strategy:
+      matrix:
+        ruby: ['3.4']
+
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: ${{ matrix.ruby }}
+          bundler-cache: true
+          cache-version: 1
+      - name: Run tests with coverage
+        run: bundle exec rake ci
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v4
+        if: always()
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          fail_ci_if_error: false
+        continue-on-error: true
+
+  test:
+    runs-on: ubuntu-latest
+    name: test
+    needs: [test-matrix]
+    if: always()
+    steps:
+      - name: Check test results
+        run: |
+          if [ "${{ needs.test-matrix.result }}" = "failure" ]; then
+            echo "Test matrix job failed"
+            exit 1
+          fi

@@ -1,0 +1,163 @@
+{
+  "Unit Tests": {
+    "coverage": {
+      "/home/user/picoruby-application-on-r2p2-esp32-development-kit/lib/reality_marble/lib/reality_marble.rb": {
+        "lines": [
+          1,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          1,
+          1,
+          null,
+          null,
+          1,
+          1,
+          null,
+          1,
+          10,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          1,
+          7,
+          7,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          1,
+          null,
+          6,
+          6,
+          5,
+          5,
+          5,
+          null,
+          null,
+          5,
+          5,
+          null,
+          null,
+          5,
+          4,
+          1,
+          1,
+          null,
+          5,
+          null,
+          null,
+          5,
+          4,
+          6,
+          null,
+          null,
+          1,
+          1,
+          null,
+          null,
+          null,
+          null,
+          null,
+          6,
+          null,
+          6,
+          null,
+          null,
+          6,
+          5,
+          5,
+          4,
+          null,
+          1,
+          null,
+          0,
+          0,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          1,
+          10,
+          10,
+          10,
+          null,
+          null
+        ],
+        "branches": {
+          "[:if, 0, 92, 8, 100, 11]": {
+            "[:then, 1, 93, 10, 97, 13]": 5,
+            "[:else, 2, 98, 8, 99, 37]": 0
+          },
+          "[:if, 3, 93, 10, 97, 13]": {
+            "[:then, 4, 94, 12, 94, 64]": 4,
+            "[:else, 5, 96, 12, 96, 57]": 1
+          },
+          "[:if, 6, 98, 8, 99, 37]": {
+            "[:then, 7, 99, 10, 99, 37]": 0,
+            "[:else, 8, 98, 8, 99, 37]": 0
+          },
+          "[:if, 9, 63, 17, 63, 61]": {
+            "[:then, 10, 63, 32, 63, 53]": 4,
+            "[:else, 11, 63, 56, 63, 61]": 1
+          },
+          "[:if, 12, 66, 8, 70, 11]": {
+            "[:then, 13, 67, 10, 67, 77]": 4,
+            "[:else, 14, 68, 8, 69, 57]": 1
+          },
+          "[:if, 15, 67, 10, 67, 77]": {
+            "[:then, 16, 67, 10, 67, 48]": 4,
+            "[:else, 17, 67, 10, 67, 77]": 0
+          },
+          "[:if, 18, 68, 8, 69, 57]": {
+            "[:then, 19, 69, 10, 69, 57]": 1,
+            "[:else, 20, 68, 8, 69, 57]": 0
+          },
+          "[:if, 21, 74, 8, 82, 11]": {
+            "[:then, 22, 75, 10, 77, 13]": 4,
+            "[:else, 23, 79, 10, 81, 13]": 1
+          },
+          "[:if, 24, 111, 4, 111, 41]": {
+            "[:then, 25, 111, 4, 111, 32]": 5,
+            "[:else, 26, 111, 4, 111, 41]": 5
+          }
+        }
+      }
+    },
+    "timestamp": 1763052630
+  }
+}
