@@ -207,7 +207,7 @@ module RealityMarble
       test_class.define_singleton_method(:process) { |data| data }
 
       marble = RealityMarble.chant do
-        expect(test_class, :process) { |data| data.size }
+        expect(test_class, :process, &:size)
       end
 
       marble.activate do

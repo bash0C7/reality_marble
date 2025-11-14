@@ -2,8 +2,8 @@
 # Reality Marble: HTTP Client Example
 # Demonstrates mocking HTTP requests without making real network calls.
 
-require_relative '../lib/reality_marble'
-require 'json'
+require_relative "../lib/reality_marble"
+require "json"
 
 puts "=" * 60
 puts "Reality Marble: HTTP Client Example"
@@ -14,19 +14,19 @@ puts "\n1. Mock HTTP GET request:"
 puts "-" * 40
 
 RealityMarble.chant do
-  expect(Net::HTTP, :get_response) do |uri|
+  expect(Net::HTTP, :get_response) do |_uri|
     # Simulate a successful response
-    response = Net::HTTPSuccess.new('1.1', '200', 'OK')
+    response = Net::HTTPSuccess.new("1.1", "200", "OK")
     response.body = '{"id":1,"name":"Alice","email":"alice@example.com"}'
     response
   end
 end.activate do
-  uri = URI('http://api.example.com/users/1')
+  uri = URI("http://api.example.com/users/1")
   response = Net::HTTP.get_response(uri)
 
   puts "  Status: #{response.code}"
   user = JSON.parse(response.body)
-  puts "  User: #{user['name']} <#{user['email']}>"
+  puts "  User: #{user["name"]} <#{user["email"]}>"
   puts "  ✓ Successfully mocked HTTP response"
 end
 
@@ -37,33 +37,33 @@ puts "-" * 40
 RealityMarble.chant do
   expect(Net::HTTP, :get_response) do |uri|
     case uri.path
-    when '/api/users'
-      response = Net::HTTPSuccess.new('1.1', '200', 'OK')
+    when "/api/users"
+      response = Net::HTTPSuccess.new("1.1", "200", "OK")
       response.body = '[{"id":1,"name":"Alice"},{"id":2,"name":"Bob"}]'
       response
-    when '/api/users/1'
-      response = Net::HTTPSuccess.new('1.1', '200', 'OK')
+    when "/api/users/1"
+      response = Net::HTTPSuccess.new("1.1", "200", "OK")
       response.body = '{"id":1,"name":"Alice"}'
       response
-    when '/api/notfound'
-      Net::HTTPNotFound.new('1.1', '404', 'Not Found')
+    when "/api/notfound"
+      Net::HTTPNotFound.new("1.1", "404", "Not Found")
     end
   end
 end.activate do
   # Fetch user list
-  list_response = Net::HTTP.get_response(URI('http://api.example.com/api/users'))
+  list_response = Net::HTTP.get_response(URI("http://api.example.com/api/users"))
   users = JSON.parse(list_response.body)
   puts "  GET /api/users => #{list_response.code}"
   puts "    Returned #{users.length} users"
 
   # Fetch specific user
-  user_response = Net::HTTP.get_response(URI('http://api.example.com/api/users/1'))
+  user_response = Net::HTTP.get_response(URI("http://api.example.com/api/users/1"))
   user = JSON.parse(user_response.body)
   puts "  GET /api/users/1 => #{user_response.code}"
-  puts "    User: #{user['name']}"
+  puts "    User: #{user["name"]}"
 
   # Try nonexistent endpoint
-  not_found = Net::HTTP.get_response(URI('http://api.example.com/api/notfound'))
+  not_found = Net::HTTP.get_response(URI("http://api.example.com/api/notfound"))
   puts "  GET /api/notfound => #{not_found.code}"
 
   puts "  ✓ Routed responses based on URI path"
@@ -76,32 +76,32 @@ puts "-" * 40
 request_bodies = []
 
 RealityMarble.chant do
-  expect(Net::HTTP, :request) do |http, request|
+  expect(Net::HTTP, :request) do |_http, request|
     # Capture the request body
     request_bodies << request.body
 
     # Simulate response based on method and path
     case request.path
-    when '/api/users'
-      if request.method == 'POST'
-        response = Net::HTTPCreated.new('1.1', '201', 'Created')
+    when "/api/users"
+      if request.method == "POST"
+        response = Net::HTTPCreated.new("1.1", "201", "Created")
         response.body = '{"id":3,"name":"Charlie"}'
         response
       end
     end
   end
 end.activate do
-  uri = URI('http://api.example.com/api/users')
+  uri = URI("http://api.example.com/api/users")
   request = Net::HTTP::Post.new(uri.path)
-  request.body = JSON.generate({name: 'Charlie', email: 'charlie@example.com'})
-  request['Content-Type'] = 'application/json'
+  request.body = JSON.generate({ name: "Charlie", email: "charlie@example.com" })
+  request["Content-Type"] = "application/json"
 
   http = Net::HTTP.new(uri.host)
   response = http.request(request)
 
   puts "  POST /api/users => #{response.code}"
   created_user = JSON.parse(response.body)
-  puts "    Created user: #{created_user['name']}"
+  puts "    Created user: #{created_user["name"]}"
   puts "  ✓ POST request mocked with body capture"
 end
 
@@ -116,7 +116,7 @@ puts "-" * 40
 attempt_count = 0
 
 RealityMarble.chant do
-  expect(Net::HTTP, :get_response) do |uri|
+  expect(Net::HTTP, :get_response) do |_uri|
     attempt_count += 1
 
     # Simulate: fail twice, succeed on third attempt
@@ -125,13 +125,13 @@ RealityMarble.chant do
       raise Timeout::Error, "Connection timed out"
     else
       puts "    [Attempt #{attempt_count}] Success!"
-      response = Net::HTTPSuccess.new('1.1', '200', 'OK')
+      response = Net::HTTPSuccess.new("1.1", "200", "OK")
       response.body = '{"status":"success"}'
       response
     end
   end
 end.activate do
-  uri = URI('http://api.example.com/api/data')
+  uri = URI("http://api.example.com/api/data")
 
   # Simulate retry logic
   max_retries = 3
@@ -140,13 +140,11 @@ end.activate do
   begin
     attempt += 1
     response = Net::HTTP.get_response(uri)
-  rescue Timeout::Error => e
-    if attempt < max_retries
-      puts "    Retrying (attempt #{attempt}/#{max_retries})..."
-      retry
-    else
-      raise
-    end
+  rescue Timeout::Error
+    raise unless attempt < max_retries
+
+    puts "    Retrying (attempt #{attempt}/#{max_retries})..."
+    retry
   end
 
   data = JSON.parse(response.body)
@@ -159,8 +157,8 @@ puts "\n5. Track and audit all HTTP calls:"
 puts "-" * 40
 
 marble = RealityMarble.chant do
-  expect(Net::HTTP, :get_response) do |uri|
-    response = Net::HTTPSuccess.new('1.1', '200', 'OK')
+  expect(Net::HTTP, :get_response) do |_uri|
+    response = Net::HTTPSuccess.new("1.1", "200", "OK")
     response.body = '{"data":"mocked"}'
     response
   end
@@ -170,9 +168,9 @@ marble.activate do
   puts "  Making multiple HTTP calls..."
 
   uris = [
-    'http://api.example.com/users',
-    'http://api.example.com/posts',
-    'http://api.example.com/comments'
+    "http://api.example.com/users",
+    "http://api.example.com/posts",
+    "http://api.example.com/comments"
   ]
 
   uris.each do |uri|
@@ -196,6 +194,6 @@ puts "  ✓ All HTTP calls tracked for audit/debugging"
 # Cleanup
 RealityMarble::Context.reset_current
 
-puts "\n" + "=" * 60
+puts "\n#{"=" * 60}"
 puts "HTTP client examples completed!"
 puts "=" * 60

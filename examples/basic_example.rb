@@ -2,7 +2,7 @@
 # Reality Marble: Basic Example
 # This example demonstrates the simplest usage pattern.
 
-require_relative '../lib/reality_marble'
+require_relative "../lib/reality_marble"
 
 puts "=" * 60
 puts "Reality Marble: Basic Example"
@@ -31,7 +31,7 @@ puts "-" * 40
 RealityMarble.chant do
   expect(Integer, :even?) do |num|
     puts "    [Mock] Checking if #{num} is even..."
-    num % 2 == 0
+    num.even?
   end
 end.activate do
   puts "  5.even? => #{5.even?}"
@@ -60,13 +60,13 @@ puts "\n4. Call history inspection:"
 puts "-" * 40
 
 marble = RealityMarble.chant do
-  expect(Hash, :keys) { ["key1", "key2"] }
+  expect(Hash, :keys) { %w[key1 key2] }
 end
 
 marble.activate do
-  h = {a: 1, b: 2}
-  keys1 = h.keys
-  keys2 = h.keys
+  h = { a: 1, b: 2 }
+  h.keys
+  h.keys
   puts "  Called h.keys twice"
 end
 
@@ -86,27 +86,25 @@ RealityMarble.chant do
     raise Errno::ENOENT, "No such file: #{path}"
   end
 end.activate do
-  begin
-    File.read('/nonexistent/file')
-  rescue Errno::ENOENT => e
-    puts "  Caught exception: #{e.message}"
-    puts "  ✓ Mock exception was raised as expected"
-  end
+  File.read("/nonexistent/file")
+rescue Errno::ENOENT => e
+  puts "  Caught exception: #{e.message}"
+  puts "  ✓ Mock exception was raised as expected"
 end
 
 # Example 6: Using the simple mock helper
 puts "\n6. Simple mock helper (no chant/activate boilerplate):"
 puts "-" * 40
 
-RealityMarble.mock(Enumerable, :empty?) { |enum| false }
+RealityMarble.mock(Enumerable, :empty?) { |_enum| false }
 result = [].empty?
 puts "  [].empty? => #{result.inspect}"
 puts "  ✓ Mock helper activated immediately"
 
-# Note: Remember to reset context in test teardown
+# NOTE: Remember to reset context in test teardown
 RealityMarble::Context.reset_current
 puts "  ✓ Context reset (cleanup)"
 
-puts "\n" + "=" * 60
+puts "\n#{"=" * 60}"
 puts "All examples completed successfully!"
 puts "=" * 60

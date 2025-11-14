@@ -2,7 +2,7 @@
 # Reality Marble: File Operations Example
 # Demonstrates mocking File and FileUtils for safe file system testing.
 
-require_relative '../lib/reality_marble'
+require_relative "../lib/reality_marble"
 
 puts "=" * 60
 puts "Reality Marble: File Operations Example"
@@ -14,10 +14,10 @@ puts "-" * 40
 
 RealityMarble.chant do
   expect(File, :exist?) do |path|
-    ['/tmp/config.yml', '/etc/app.conf'].include?(path)
+    ["/tmp/config.yml", "/etc/app.conf"].include?(path)
   end
 end.activate do
-  config_paths = ['/tmp/config.yml', '/etc/app.conf', '/nonexistent/path']
+  config_paths = ["/tmp/config.yml", "/etc/app.conf", "/nonexistent/path"]
 
   config_paths.each do |path|
     exists = File.exist?(path)
@@ -32,8 +32,8 @@ puts "\n2. Mock File.read with conditional content:"
 puts "-" * 40
 
 file_contents = {
-  '/config/app.yml' => "app_name: MyApp\nversion: 1.0",
-  '/config/db.yml' => "database: postgres\nport: 5432"
+  "/config/app.yml" => "app_name: MyApp\nversion: 1.0",
+  "/config/db.yml" => "database: postgres\nport: 5432"
 }
 
 RealityMarble.chant do
@@ -41,8 +41,8 @@ RealityMarble.chant do
     file_contents[path] || "File not found: #{path}"
   end
 end.activate do
-  app_config = File.read('/config/app.yml')
-  db_config = File.read('/config/db.yml')
+  app_config = File.read("/config/app.yml")
+  db_config = File.read("/config/db.yml")
 
   puts "  app.yml content:"
   puts "    #{app_config.inspect}"
@@ -65,10 +65,10 @@ end
 marble.activate do
   puts "  Performing file operations..."
 
-  FileUtils.mkdir_p('/backup/data')
-  FileUtils.mkdir_p('/backup/logs')
-  FileUtils.cp_r('/var/data', '/backup/data')
-  FileUtils.rm_rf('/tmp/old_backups')
+  FileUtils.mkdir_p("/backup/data")
+  FileUtils.mkdir_p("/backup/logs")
+  FileUtils.cp_r("/var/data", "/backup/data")
+  FileUtils.rm_rf("/tmp/old_backups")
 end
 
 mkdir_calls = marble.calls_for(FileUtils, :mkdir_p)
@@ -88,19 +88,20 @@ puts "-" * 40
 
 RealityMarble.chant do
   expect(File, :read) do |path|
-    raise Errno::EACCES, "Permission denied: #{path}" if path.start_with?('/root/')
+    raise Errno::EACCES, "Permission denied: #{path}" if path.start_with?("/root/")
+
     "File content"
   end
 end.activate do
   begin
-    File.read('/etc/passwd')
+    File.read("/etc/passwd")
     puts "  Successfully read /etc/passwd (mocked)"
   rescue Errno::EACCES => e
     puts "  ✗ Unexpected permission error: #{e.message}"
   end
 
   begin
-    File.read('/root/secret.txt')
+    File.read("/root/secret.txt")
     puts "  ✗ Should have raised permission error"
   rescue Errno::EACCES => e
     puts "  ✓ Permission error raised as expected: #{e.message}"
@@ -114,7 +115,7 @@ puts "-" * 40
 # Simulate a backup service without touching actual files
 marble = RealityMarble.chant do
   expect(Dir, :glob) { |pattern| simulate_glob(pattern) }
-  expect(File, :size) { |path| rand(1000..10000) }
+  expect(File, :size) { |_path| rand(1000..10_000) }
   expect(FileUtils, :mkdir_p) { |path| puts "    [Mocked] Created backup directory: #{path}" }
   expect(FileUtils, :cp) { |src, dest| puts "    [Mocked] Backed up: #{src} -> #{dest}" }
 end
@@ -123,15 +124,15 @@ marble.activate do
   puts "  Running backup service..."
 
   # Create backup directory
-  FileUtils.mkdir_p('/mnt/backups/2024-01-15')
+  FileUtils.mkdir_p("/mnt/backups/2024-01-15")
 
   # Find all app files
-  app_files = Dir.glob('/app/**/*.rb')
+  app_files = Dir.glob("/app/**/*.rb")
   puts "  Found #{app_files.length} Ruby files"
 
   # Backup each file
   app_files.each do |file|
-    size = File.size(file)
+    File.size(file)
     FileUtils.cp(file, "/mnt/backups/2024-01-15/#{File.basename(file)}")
   end
 end
@@ -141,10 +142,10 @@ puts "  ✓ Backup service tested without touching real files"
 # Helper function for simulating Dir.glob
 def simulate_glob(pattern)
   case pattern
-  when '/app/**/*.rb'
-    ['/app/main.rb', '/app/config.rb', '/app/lib/utils.rb']
-  when '/app/**/*'
-    Dir.glob('/app/**/*')
+  when "/app/**/*.rb"
+    ["/app/main.rb", "/app/config.rb", "/app/lib/utils.rb"]
+  when "/app/**/*"
+    Dir.glob("/app/**/*")
   else
     []
   end
@@ -153,6 +154,6 @@ end
 # Cleanup
 RealityMarble::Context.reset_current
 
-puts "\n" + "=" * 60
+puts "\n#{"=" * 60}"
 puts "File operations examples completed!"
 puts "=" * 60
