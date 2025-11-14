@@ -1,5 +1,6 @@
 require_relative "reality_marble/version"
 require_relative "reality_marble/call_record"
+require_relative "reality_marble/expectation"
 
 # Reality Marble (固有結界): Next-generation mock/stub library for Ruby 3.4+
 #
@@ -41,11 +42,12 @@ module RealityMarble
     #
     # @param target_class [Class, Module] The class/module to mock
     # @param method_name [Symbol] The method name to mock
-    # @param block [Proc] The mock implementation
-    # @return [self]
-    def expect(target_class, method_name, &block)
-      @expectations << { target_class: target_class, method_name: method_name, block: block }
-      self
+    # @param block [Proc] The mock implementation (optional)
+    # @return [Expectation]
+    def expect(target_class, method_name, &)
+      exp = Expectation.new(target_class, method_name, &)
+      @expectations << exp
+      exp
     end
 
     # Get call history for a specific method
@@ -85,8 +87,8 @@ module RealityMarble
     end
 
     def setup_backup(exp)
-      klass = exp[:target_class]
-      method = exp[:method_name]
+      klass = exp.target_class
+      method = exp.method_name
       is_singleton = klass.singleton_methods.include?(method)
       target = is_singleton ? klass.singleton_class : klass
       backup_name = :"__rm_original_#{method}"
@@ -103,20 +105,32 @@ module RealityMarble
     end
 
     def setup_mock(exp, _target, method)
-      mock_proc = exp[:block]
-      klass = exp[:target_class]
+      klass = exp.target_class
       is_singleton = klass.singleton_methods.include?(method)
       call_history = @call_history
+      expectations = @expectations
 
       if is_singleton
         klass.singleton_class.define_method(method) do |*args, **kwargs, &blk|
           call_history[[klass, method]] << CallRecord.new(args: args, kwargs: kwargs)
-          mock_proc&.call(*args, **kwargs, &blk)
+          # Find matching expectation
+          matching = expectations.find { |e| e.target_class == klass && e.method_name == method && e.matches?(args) }
+          if matching
+            matching.call_with(args)
+          elsif exp.block
+            exp.block.call(*args, **kwargs, &blk)
+          end
         end
       else
         klass.define_method(method) do |*args, **kwargs, &blk|
           call_history[[klass, method]] << CallRecord.new(args: args, kwargs: kwargs)
-          mock_proc&.call(*args, **kwargs, &blk)
+          # Find matching expectation
+          matching = expectations.find { |e| e.target_class == klass && e.method_name == method && e.matches?(args) }
+          if matching
+            matching.call_with(args)
+          elsif exp.block
+            exp.block.call(*args, **kwargs, &blk)
+          end
         end
       end
     end
