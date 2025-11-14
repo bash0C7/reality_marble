@@ -1,4 +1,5 @@
 require_relative "reality_marble/version"
+require_relative "reality_marble/call_record"
 
 # Reality Marble (固有結界): Next-generation mock/stub library for Ruby 3.4+
 #
@@ -33,6 +34,7 @@ module RealityMarble
 
     def initialize
       @expectations = []
+      @call_history = Hash.new { |h, k| h[k] = [] }
     end
 
     # Define an expectation (mock/stub) for a method
@@ -44,6 +46,15 @@ module RealityMarble
     def expect(target_class, method_name, &block)
       @expectations << { target_class: target_class, method_name: method_name, block: block }
       self
+    end
+
+    # Get call history for a specific method
+    #
+    # @param target_class [Class, Module] The class/module
+    # @param method_name [Symbol] The method name
+    # @return [Array<CallRecord>] List of call records
+    def calls_for(target_class, method_name)
+      @call_history[[target_class, method_name]]
     end
 
     # Activate this Reality Marble for the duration of the block
@@ -95,14 +106,17 @@ module RealityMarble
       mock_proc = exp[:block]
       klass = exp[:target_class]
       is_singleton = klass.singleton_methods.include?(method)
+      call_history = @call_history
 
       if is_singleton
         klass.singleton_class.define_method(method) do |*args, **kwargs, &blk|
-          mock_proc.call(*args, **kwargs, &blk)
+          call_history[[klass, method]] << CallRecord.new(args: args, kwargs: kwargs)
+          mock_proc&.call(*args, **kwargs, &blk)
         end
       else
         klass.define_method(method) do |*args, **kwargs, &blk|
-          mock_proc.call(*args, **kwargs, &blk)
+          call_history[[klass, method]] << CallRecord.new(args: args, kwargs: kwargs)
+          mock_proc&.call(*args, **kwargs, &blk)
         end
       end
     end
