@@ -2,7 +2,27 @@
 
 Next-generation mock/stub library for Ruby 3.4+ - Development guide for next session
 
-## Current Status (v0.1.0)
+## Current Status (v0.2.0 - Phase 1 + Phase 2.1 Complete)
+
+### ✅ Completed in This Session
+
+**Phase 1: Essential Features (v0.2.0)**:
+- ✅ Call history tracking: `CallRecord` class, `marble.calls_for(klass, method)`
+- ✅ Argument matching DSL: `expect(...).with(*args)`, `expect(...).with_any()`
+- ✅ Return value specification: `expect(...).returns(value)`
+- ✅ Exception raising: `expect(...).raises(ExceptionClass, message)`
+- ✅ C extension method support: alias_method approach
+- ✅ All tests pass (26/26 for Phase 1)
+- ✅ Line coverage: 97.1%
+
+**Phase 2.1: Nested Marble Activation (v0.2.1 Candidate)**:
+- ✅ Thread-local marble stack: `RealityMarble.marble_stack`
+- ✅ Nested activate support: Multiple marbles can be activated within each other
+- ✅ Reference counting: Only first activation backs up, only last restores
+- ✅ Expectation precedence: Most recent marble's expectations take priority
+- ✅ Thread safety: Each thread has its own marble stack
+- ✅ All tests pass (30/30 including thread safety and nested activation)
+- ✅ RuboCop: 0 violations
 
 ### What We Have
 
