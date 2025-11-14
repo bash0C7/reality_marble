@@ -5,6 +5,7 @@ AllCops:
     - "vendor/**/*"
     - "build/**/*"
     - ".cache/**/*"
+    - "examples/**/*"  # Documentation code examples
 
 plugins:
   - rubocop-performance
