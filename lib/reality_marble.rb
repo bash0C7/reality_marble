@@ -134,12 +134,16 @@ module RealityMarble
         # Find matching expectation from all active marbles (most recent first)
         stack = RealityMarble.marble_stack
         matching_exp = nil
+        matching_marble = nil
         stack.reverse_each do |marble|
           matching = marble.expectations.find do |e|
             e.target_class == klass && e.method_name == method && e.matches?(args)
           end
-          matching_exp = matching if matching
-          break if matching
+          next unless matching
+
+          matching_exp = matching
+          matching_marble = marble
+          break
         end
 
         # Record call
@@ -147,7 +151,7 @@ module RealityMarble
 
         # Execute expectation or block
         if matching_exp
-          matching_exp.call_with(args)
+          matching_exp.call_with(args, marble: matching_marble)
         elsif exp.block
           exp.block.call(*args, **kwargs, &blk)
         end
