@@ -97,4 +97,20 @@ class MarbleTest < RealityMarbleTestCase
     marble = RealityMarble.chant
     assert_equal 0, marble.expectations.size
   end
+
+  def test_restores_c_extension_methods
+    # File.exist? is a C extension method
+    original_behavior = File.exist?(__FILE__)
+
+    marble = RealityMarble.chant do
+      expect(File, :exist?) { |_path| false }
+    end
+
+    marble.activate do
+      refute File.exist?(__FILE__) # Mock is active
+    end
+
+    # Verify restoration (this currently fails with unbind approach)
+    assert_equal original_behavior, File.exist?(__FILE__)
+  end
 end

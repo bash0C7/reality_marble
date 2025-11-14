@@ -51,50 +51,67 @@ module RealityMarble
     # @yield The test block to execute with mocks active
     # @return [Object] The result of the test block
     def activate
-      # Store original methods
-      originals = {}
-      @expectations.each do |exp|
-        klass = exp[:target_class]
-        method = exp[:method_name]
-        mock_proc = exp[:block]
-
-        # Determine if method is instance method or singleton method
-        is_singleton = klass.singleton_methods.include?(method)
-        target = is_singleton ? klass.singleton_class : klass
-
-        # Save original method
-        if is_singleton
-          original_method = klass.method(method) if klass.respond_to?(method)
-        elsif klass.instance_methods.include?(method)
-          original_method = klass.instance_method(method)
-        end
-        originals[[target, method, is_singleton]] = original_method
-
-        # Redefine method
-        if is_singleton
-          klass.singleton_class.define_method(method) do |*args, **kwargs, &blk|
-            mock_proc.call(*args, **kwargs, &blk)
-          end
-        else
-          klass.define_method(method) do |*args, **kwargs, &blk|
-            mock_proc.call(*args, **kwargs, &blk)
-          end
-        end
-      end
+      originals = backup_and_mock_expectations
 
       # Execute test block
       result = yield
 
       result
     ensure
-      # Restore original methods
-      originals.each do |(target, method, is_singleton), original_method|
-        if original_method
-          if is_singleton
-            target.define_method(method, original_method.unbind)
-          else
-            target.define_method(method, original_method)
-          end
+      restore_original_methods(originals)
+    end
+
+    private
+
+    def backup_and_mock_expectations
+      originals = {}
+      @expectations.each do |exp|
+        target, method, backup_name, method_exists = setup_backup(exp)
+        originals[[target, method, backup_name]] = method_exists
+        setup_mock(exp, target, method)
+      end
+      originals
+    end
+
+    def setup_backup(exp)
+      klass = exp[:target_class]
+      method = exp[:method_name]
+      is_singleton = klass.singleton_methods.include?(method)
+      target = is_singleton ? klass.singleton_class : klass
+      backup_name = :"__rm_original_#{method}"
+
+      method_exists = if is_singleton
+                        klass.respond_to?(method)
+                      else
+                        klass.instance_methods.include?(method)
+                      end
+
+      target.alias_method(backup_name, method) if method_exists
+
+      [target, method, backup_name, method_exists]
+    end
+
+    def setup_mock(exp, _target, method)
+      mock_proc = exp[:block]
+      klass = exp[:target_class]
+      is_singleton = klass.singleton_methods.include?(method)
+
+      if is_singleton
+        klass.singleton_class.define_method(method) do |*args, **kwargs, &blk|
+          mock_proc.call(*args, **kwargs, &blk)
+        end
+      else
+        klass.define_method(method) do |*args, **kwargs, &blk|
+          mock_proc.call(*args, **kwargs, &blk)
+        end
+      end
+    end
+
+    def restore_original_methods(originals)
+      originals.each do |(target, method, backup_name), method_existed|
+        if method_existed
+          target.alias_method(method, backup_name)
+          target.remove_method(backup_name)
         elsif target.method_defined?(method)
           target.undef_method(method)
         end
