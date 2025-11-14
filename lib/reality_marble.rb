@@ -37,12 +37,13 @@ module RealityMarble
 
   # Reality Marble context for managing mocks/stubs
   class Marble
-    attr_reader :expectations, :call_history, :capture
+    attr_reader :expectations, :call_history, :capture, :defined_methods
 
     def initialize(capture: nil)
       @expectations = []
       @call_history = Hash.new { |h, k| h[k] = [] }
       @capture = capture
+      @defined_methods = {}
     end
 
     # Define an expectation (mock/stub) for a method
