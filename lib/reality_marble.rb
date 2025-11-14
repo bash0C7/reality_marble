@@ -5,26 +5,29 @@ require_relative "reality_marble/context"
 # Reality Marble (固有結界): Next-generation mock/stub library for Ruby 3.4+
 #
 # Inspired by TYPE-MOON's metaphor, Reality Marble creates a temporary "reality"
-# where method behaviors are overridden only within specific test scopes using
-# Refinements, TracePoint, and metaprogramming.
+# where method behaviors are overridden only within specific test scopes.
 #
-# @example Basic usage
+# Uses a lazy method application pattern: methods defined during chant are
+# detected via ObjectSpace, removed, then reapplied only during activate.
+# This ensures perfect test isolation with zero leakage.
+#
+# @example Basic usage with native syntax
 #   RealityMarble.chant do
-#     expect(FileUtils, :rm_rf) { |path| puts "Mock: Would delete #{path}" }
+#     FileUtils.define_singleton_method(:rm_rf) do |path|
+#       puts "Mock: Would delete #{path}"
+#     end
 #   end.activate do
 #     FileUtils.rm_rf('/some/path')  # Calls mock instead
 #   end
 #
-# @example Test::Unit integration
-#   class MyTest < Test::Unit::TestCase
-#     def test_file_operations
-#       RealityMarble.chant do
-#         expect(File, :exist?) { |path| path == '/mock/path' }
-#       end.activate do
-#         assert File.exist?('/mock/path')
-#         refute File.exist?('/other/path')
-#       end
+# @example With variable capture (mruby/c style)
+#   git_called = false
+#   RealityMarble.chant(capture: {git_called: git_called}) do |cap|
+#     Kernel.define_method(:system) do |cmd|
+#       cap[:git_called] = true
 #     end
+#   end.activate do
+#     system('git clone https://example.com/repo.git')
 #   end
 module RealityMarble
   class Error < StandardError; end

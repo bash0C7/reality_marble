@@ -153,47 +153,70 @@ Types: `feat`, `fix`, `refactor`, `test`, `docs`, `chore`
 
 ## Architecture
 
-### Current Implementation (v0.1.0)
+### Current Implementation (v2.0)
 
 **Core Components**:
-- `RealityMarble::Marble`: Context for managing expectations
-- `expect(klass, method, &block)`: Define mocks/stubs
-- `activate(&block)`: Execute with mocks active
+- `RealityMarble::Marble`: Manages method lifecycle and mock definitions
+- `RealityMarble.chant`: Entry point for defining mocks
+- `Marble#activate`: Execute test block with mocks active
+- `RealityMarble::Context`: Thread-local stack management
 
 **How It Works**:
-1. User calls `RealityMarble.chant` to create a Marble
-2. User calls `expect(Klass, :method) { ... }` to define mocks
-3. User calls `activate { ... }` to execute test block with mocks
-4. `activate` redefines methods before block execution
-5. `ensure` block restores original methods
 
-### Future Enhancements
+1. **Definition Phase**:
+   - User calls `RealityMarble.chant { ... }`
+   - Marble snapshots all existing methods via `ObjectSpace.each_object(Module)`
+   - User's block is executed (may define new methods via `define_method`)
+   - Library detects new methods via diff comparison
+   - Detected methods are **immediately removed** (saved as UnboundMethod)
 
-See `../../REALITY_MARBLE_TODO.md` for advanced designs:
-- 案2: Refinements + Alias-Rename pattern
-- 案3: TracePoint + method redefinition
-- 案4: Prism AST transformation (research project)
+2. **Activation Phase**:
+   - User calls `.activate { ... }`
+   - Library restores saved methods before executing block
+   - Methods are available during test execution
+   - Block executes with mocks active
+
+3. **Cleanup Phase**:
+   - `ensure` block triggers after activate
+   - All mocked methods are removed
+   - Original methods are restored if they existed before
+
+**Why This Design?**
+- Simple: No complex DSL or dispatch logic
+- Safe: Perfect test isolation, zero leakage
+- Native: Uses standard Ruby `define_method`
+- Elegant: Three-phase lifecycle is clear and testable
 
 ## File Structure
 
 ```
 lib/reality_marble/
 ├── lib/
-│   ├── reality_marble.rb          # Main entry point
+│   ├── reality_marble.rb                 # Main entry, Marble class, chant/activate
 │   └── reality_marble/
-│       └── version.rb              # Version constant
+│       ├── version.rb                    # Version constant
+│       ├── context.rb                    # Thread-local stack management
+│       └── call_record.rb                # Call history tracking
 ├── test/
-│   ├── test_helper.rb              # Test setup + SimpleCov
-│   └── reality_marble/             # Test files
-├── .rubocop.yml                    # RuboCop configuration
-├── Rakefile                        # Rake tasks
-├── Gemfile                         # Development dependencies
-├── reality_marble.gemspec          # Gem specification
-├── README.md                       # User documentation
-├── CLAUDE.md                       # This file
-├── CHANGELOG.md                    # Version history
-└── LICENSE                         # MIT License
+│   ├── test_helper.rb                    # Test setup + SimpleCov
+│   └── reality_marble/
+│       ├── capture_test.rb               # Test capture: option
+│       ├── method_lifecycle_test.rb      # Test method apply/cleanup
+│       └── native_syntax_test.rb         # Test native define_method integration
+├── .rubocop.yml                          # RuboCop configuration
+├── Rakefile                              # Rake tasks
+├── Gemfile                               # Development dependencies
+├── reality_marble.gemspec                # Gem specification
+├── README.md                             # User documentation (v2.0)
+├── CLAUDE.md                             # This file (v2.0)
+├── CHANGELOG.md                          # Version history
+└── LICENSE                               # MIT License
 ```
+
+**Key Files**:
+- `reality_marble.rb`: 156 lines - Core API without DSL complexity
+- `context.rb`: 45 lines - Simple thread-local stack
+- Test files: 3 files total covering capture, lifecycle, and integration
 
 ## Common Tasks
 
@@ -219,13 +242,22 @@ bundle exec rake dev
 
 ## When Stuck
 
-If you encounter ambiguity or need guidance:
-1. Check existing tests for patterns
-2. Refer to `../../REALITY_MARBLE_TODO.md` for design rationale
-3. Ask user for clarification
+If you encounter issues during development:
 
-**Never**:
-- Add `# rubocop:disable` without refactoring first
-- Skip tests
-- Lower coverage thresholds
-- Commit with violations
+**For bugs or performance issues**:
+1. Check the three test files for similar patterns
+2. Review the three-phase lifecycle (Definition → Activation → Cleanup)
+3. Verify ObjectSpace detection is working correctly
+4. Ask user for clarification
+
+**For API questions**:
+1. Check README.md for user-facing examples
+2. Review the capture: option and its mruby/c style semantics
+3. Ensure method lifecycle is properly tested
+
+**Absolute rules**:
+- 🚫 Add `# rubocop:disable` without refactoring first
+- 🚫 Skip tests or lower coverage thresholds
+- 🚫 Commit with RuboCop violations
+- 🚫 Reintroduce expect DSL or Expectation class
+- 🚫 Change the three-phase lifecycle without comprehensive tests
