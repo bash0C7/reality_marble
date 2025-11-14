@@ -8,6 +8,8 @@ module RealityMarble
       @method_name = method_name
       @matchers = []
       @return_value = nil
+      @return_sequence = []
+      @sequence_index = 0
       @block = block
       @exception = nil
     end
@@ -29,12 +31,19 @@ module RealityMarble
       self
     end
 
-    # Set return value for this expectation
+    # Set return value(s) for this expectation
     #
-    # @param value [Object] The value to return
+    # @param values [Object] One or more values to return in sequence
     # @return [self]
-    def returns(value)
-      @return_value = value
+    def returns(*values)
+      if values.size == 1
+        @return_value = values.first
+        @return_sequence = []
+      else
+        @return_sequence = values
+        @return_value = nil
+        @sequence_index = 0
+      end
       self
     end
 
@@ -76,6 +85,11 @@ module RealityMarble
         raise @exception[:class]
       elsif @block
         @block.call(*args)
+      elsif @return_sequence.any?
+        # Return sequence value, or last value if exhausted
+        value = @return_sequence[@sequence_index]
+        @sequence_index = [@sequence_index + 1, @return_sequence.size - 1].min
+        value
       else
         @return_value
       end
