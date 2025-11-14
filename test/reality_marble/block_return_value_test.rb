@@ -85,5 +85,10 @@ module RealityMarble
         assert_equal "m1_call_2", arr1.shift
       end
     end
+
+    # Cleanup after each test
+    def teardown
+      Context.reset_current
+    end
   end
 end

@@ -67,4 +67,8 @@ class CallTrackingTest < RealityMarbleTestCase
 
     assert_equal 0, marble.calls_for(File, :exist?).count
   end
+
+  def teardown
+    RealityMarble::Context.reset_current
+  end
 end

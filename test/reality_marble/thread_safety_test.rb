@@ -133,4 +133,8 @@ class ThreadSafetyTest < RealityMarbleTestCase
     assert_equal false, results[:t1_exist]
     assert_equal "mocked", results[:t2_read]
   end
+
+  def teardown
+    RealityMarble::Context.reset_current
+  end
 end

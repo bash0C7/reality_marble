@@ -59,4 +59,8 @@ class ArgumentMatchingTest < RealityMarbleTestCase
       assert_nil File.write("/other", "data")
     end
   end
+
+  def teardown
+    RealityMarble::Context.reset_current
+  end
 end

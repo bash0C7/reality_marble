@@ -113,4 +113,8 @@ class MarbleTest < RealityMarbleTestCase
     # Verify restoration (this currently fails with unbind approach)
     assert_equal original_behavior, File.exist?(__FILE__)
   end
+
+  def teardown
+    RealityMarble::Context.reset_current
+  end
 end

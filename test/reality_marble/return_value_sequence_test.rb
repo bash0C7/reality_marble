@@ -145,4 +145,8 @@ module RealityMarble
       end
     end
   end
+
+  def teardown
+    RealityMarble::Context.reset_current
+  end
 end

@@ -55,4 +55,8 @@ class ExceptionTest < RealityMarbleTestCase
       assert_raises(StandardError) { File.read("/any") }
     end
   end
+
+  def teardown
+    RealityMarble::Context.reset_current
+  end
 end
