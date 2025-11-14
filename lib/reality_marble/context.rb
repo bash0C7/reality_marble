@@ -79,6 +79,8 @@ module RealityMarble
                           klass.instance_methods.include?(method)
                         end
 
+        warn "⚠️  Warning: Mocking non-existent method #{klass}##{method} (no original to restore)" unless method_exists
+
         target.alias_method(backup_name, method) if method_exists
 
         @backed_up_methods[key] = {
