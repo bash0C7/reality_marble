@@ -29,9 +29,31 @@ require_relative "reality_marble/expectation"
 module RealityMarble
   class Error < StandardError; end
 
+  # Global registry for tracking mock depth per method (for nested activation)
+  @mock_depth_counter = Hash.new { |h, k| h[k] = 0 }
+  @mock_depth_mutex = Mutex.new
+
+  def self.increment_mock_depth(klass, method)
+    @mock_depth_mutex.synchronize do
+      @mock_depth_counter[[klass, method]] += 1
+    end
+  end
+
+  def self.decrement_mock_depth(klass, method)
+    @mock_depth_mutex.synchronize do
+      @mock_depth_counter[[klass, method]] -= 1
+    end
+  end
+
+  def self.mock_depth(klass, method)
+    @mock_depth_mutex.synchronize do
+      @mock_depth_counter[[klass, method]]
+    end
+  end
+
   # Reality Marble context for managing mocks/stubs
   class Marble
-    attr_reader :expectations
+    attr_reader :expectations, :call_history
 
     def initialize
       @expectations = []
@@ -79,14 +101,23 @@ module RealityMarble
     def backup_and_mock_expectations
       originals = {}
       @expectations.each do |exp|
-        target, method, backup_name, method_exists = setup_backup(exp)
-        originals[[target, method, backup_name]] = method_exists
-        setup_mock(exp, target, method)
+        klass = exp.target_class
+        method = exp.method_name
+
+        # Only create backup on first activation for this method
+        depth = RealityMarble.mock_depth(klass, method)
+        if depth.zero?
+          target, backup_name, method_exists = setup_backup_first_time(exp)
+          originals[[target, method, backup_name]] = method_exists
+        end
+
+        RealityMarble.increment_mock_depth(klass, method)
+        setup_mock(exp, method)
       end
       originals
     end
 
-    def setup_backup(exp)
+    def setup_backup_first_time(exp)
       klass = exp.target_class
       method = exp.method_name
       is_singleton = klass.singleton_methods.include?(method)
@@ -101,10 +132,10 @@ module RealityMarble
 
       target.alias_method(backup_name, method) if method_exists
 
-      [target, method, backup_name, method_exists]
+      [target, backup_name, method_exists]
     end
 
-    def setup_mock(exp, _target, method)
+    def setup_mock(exp, method)
       klass = exp.target_class
       is_singleton = klass.singleton_methods.include?(method)
       call_history = @call_history
@@ -137,6 +168,19 @@ module RealityMarble
 
     def restore_original_methods(originals)
       originals.each do |(target, method, backup_name), method_existed|
+        # Get the class from the target (singleton_class -> class)
+        klass = target.is_a?(Class) && target.singleton_class == target ? target : method
+
+        # Find the original class from expectations
+        exp = @expectations.find { |e| e.method_name == method }
+        klass = exp.target_class if exp
+
+        # Only restore when depth reaches zero
+        RealityMarble.decrement_mock_depth(klass, method)
+        depth = RealityMarble.mock_depth(klass, method)
+
+        next unless depth.zero?
+
         if method_existed
           target.alias_method(method, backup_name)
           target.remove_method(backup_name)
