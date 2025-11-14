@@ -2,9 +2,17 @@
 
 Next-generation mock/stub library for Ruby 3.4+ - Development guide for next session
 
-## Current Status (v0.2.0 - Phase 1 + Phase 2.1 Complete)
+## Current Status (v0.2.0 - Phase 1 + Phase 2.1 + Phase 2.2 Complete)
 
 ### ✅ Completed in This Session
+
+**Phase 2.2: Return Value Sequences (v0.2.2 Candidate)**:
+- ✅ Multiple return values: `returns("first", "second", "third")`
+- ✅ Sequence index tracking per Expectation
+- ✅ Exhausted sequence returns last value (no error)
+- ✅ Sequence state isolated per Expectation (not shared across marbles)
+- ✅ All tests pass (39/39)
+- ✅ RuboCop: 0 violations
 
 **Phase 1: Essential Features (v0.2.0)**:
 - ✅ Call history tracking: `CallRecord` class, `marble.calls_for(klass, method)`
@@ -307,13 +315,65 @@ end
 - `lib/reality_marble/expectation.rb` (modify)
 - `test/reality_marble/exception_test.rb` (new)
 
-### Phase 2: Advanced Design Implementation (SHOULD HAVE for v0.3.0)
+### Phase 2: Advanced Mocking Features (SHOULD HAVE for v0.2.x)
 
 **Priority: ⭐⭐⭐⭐ HIGH**
 
+**Goal**: Complete return value and nested marble features, then design migration to 案3.2.
+
+#### 2.1 Nested Marble Activation (✅ COMPLETE)
+
+**Status**: Thread-local marble stack with reference counting implemented and tested.
+
+#### 2.2 Return Value Sequences (✅ COMPLETE)
+
+**Status**: `returns("first", "second", "third")` API implemented with sequence tracking per Expectation.
+
+**Features**:
+- Multiple return values in sequence
+- Sequence index tracks position independently per Expectation
+- Exhausted sequence returns last value (no error)
+- Sequence state isolated per Expectation (not shared across nested marbles)
+- All 39 tests passing, 0 RuboCop violations
+
+**Implementation files**:
+- `lib/reality_marble/expectation.rb` (modified)
+- `test/reality_marble/return_value_sequence_test.rb` (new)
+
+#### 2.3 Block-Based Return Values (NEXT)
+
+**Goal**: Enable return values that depend on call count or arguments.
+
+**API Design**:
+```ruby
+# Return different values based on call count
+expect(Queue, :pop) do |*args, count: 0|
+  count > 2 ? nil : "value_#{count}"
+end
+
+# Access marble history in block
+expect(Array, :shift) do |*args, marble: nil|
+  history = marble.calls_for(Array, :shift)
+  history.length > 3 ? nil : "item_#{history.length}"
+end
+```
+
+**Implementation approach**:
+- Add call count tracking to blocks
+- Pass metadata block parameter (count, marble context)
+- Reuse existing block invocation in `call_with`
+
+**Estimated effort**: 2-3 TDD cycles
+
+---
+
+### Phase 3: Advanced Design Implementation (SHOULD HAVE for v0.3.0)
+
+**Priority: ⭐⭐⭐ MEDIUM**
+
 **Goal**: Implement 案3.2 (TracePoint + Upfront Bulk Redefinition) for production-grade architecture.
 
-#### 2.1 案3.2 Architecture Migration
+#### 3.1 案3.2 Architecture Migration
 
 **Design rationale** (from `REALITY_MARBLE_TODO.md`):
 
@@ -434,7 +494,7 @@ end
 
 **Coverage**: Not applicable (benchmark, not test)
 
-### Phase 3: 案4 Research Project (NICE TO HAVE for v1.0.0)
+### Phase 4: 案4 Research Project (NICE TO HAVE for v1.0.0)
 
 **Priority: ⭐⭐ LOW (Research only)**
 
@@ -442,7 +502,7 @@ end
 
 **User's note**: 案4 is a "fascinating research project but impractical for production". Implement as experimental feature only.
 
-#### 3.1 Proof of Concept: AST Visitor
+#### 4.1 Proof of Concept: AST Visitor
 
 **Implementation**:
 ```ruby
@@ -487,7 +547,7 @@ def test_transforms_test_method
 end
 ```
 
-#### 3.2 Source Map Registry
+#### 4.2 Source Map Registry
 
 **Implementation**:
 ```ruby
@@ -512,7 +572,7 @@ class SourceMap
 end
 ```
 
-#### 3.3 Require Hook Integration
+#### 4.3 Require Hook Integration
 
 **Implementation**:
 ```ruby
