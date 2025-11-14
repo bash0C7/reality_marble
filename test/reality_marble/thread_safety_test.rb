@@ -15,23 +15,19 @@ class ThreadSafetyTest < RealityMarbleTestCase
     errors = []
 
     t1 = Thread.new do
-      begin
-        marble1.activate do
-          results << File.exist?("/any")
-        end
-      rescue => e
-        errors << e
+      marble1.activate do
+        results << File.exist?("/any")
       end
+    rescue StandardError => e
+      errors << e
     end
 
     t2 = Thread.new do
-      begin
-        marble2.activate do
-          results << File.exist?("/any")
-        end
-      rescue => e
-        errors << e
+      marble2.activate do
+        results << File.exist?("/any")
       end
+    rescue StandardError => e
+      errors << e
     end
 
     t1.join
@@ -89,13 +85,13 @@ class ThreadSafetyTest < RealityMarbleTestCase
     results = []
 
     marble1.activate do
-      results << File.exist?("/file1")  # true
+      results << File.exist?("/file1") # true
 
       marble2.activate do
-        results << File.exist?("/file2")  # false
+        results << File.exist?("/file2") # false
       end
 
-      results << File.exist?("/file3")  # true again
+      results << File.exist?("/file3") # true again
     end
 
     assert_equal [true, false, true], results
@@ -115,23 +111,19 @@ class ThreadSafetyTest < RealityMarbleTestCase
     errors = []
 
     t1 = Thread.new do
-      begin
-        marble1.activate do
-          results[:t1_exist] = File.exist?(__FILE__)
-        end
-      rescue => e
-        errors << e
+      marble1.activate do
+        results[:t1_exist] = File.exist?(__FILE__)
       end
+    rescue StandardError => e
+      errors << e
     end
 
     t2 = Thread.new do
-      begin
-        marble2.activate do
-          results[:t2_read] = File.read(__FILE__)
-        end
-      rescue => e
-        errors << e
+      marble2.activate do
+        results[:t2_read] = File.read(__FILE__)
       end
+    rescue StandardError => e
+      errors << e
     end
 
     t1.join
