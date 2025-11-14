@@ -27,11 +27,33 @@ Ruby 3.4+ mock/stub library development guide.
 
 ### What This Gem Does
 
-Reality Marble provides:
-- Lexically-scoped mocks/stubs
-- Thread-safe test isolation
-- Simple API: `chant` + `activate`
-- Automatic method restoration
+Reality Marble v2.0 provides:
+- **Native Syntax**: Define mocks using Ruby's native `define_method`
+- **Lexically-scoped**: Mocks are isolated to specific test contexts
+- **Thread-safe**: Safe for concurrent test execution
+- **Variable Capture**: mruby/c-style `capture:` option for passing variables
+- **Simple API**: `chant` to define, `activate` to execute
+- **Automatic Restoration**: Methods are removed after `activate` block
+
+### Architecture: Lazy Method Application Pattern
+
+v2.0 uses a simple, elegant method lifecycle:
+
+1. **Definition Phase** (`chant` block):
+   - User calls `define_method` inside the block
+   - Library detects which methods were defined (via ObjectSpace)
+   - Methods are immediately removed from their targets
+
+2. **Activation Phase** (`activate` block):
+   - Library restores the saved methods before executing the block
+   - Methods are available during test execution
+   - After block exits, methods are cleaned up again
+
+3. **Cleanup Phase** (ensure):
+   - All mocked methods are removed
+   - Original methods are restored if they existed
+
+This pattern avoids the complexity of the old Expectation DSL while maintaining perfect isolation.
 
 ## Core Principles
 
