@@ -1,7 +1,7 @@
 module RealityMarble
   # Expectation: Define conditions and return values for mocked methods
   class Expectation
-    attr_reader :target_class, :method_name, :matchers, :return_value, :block
+    attr_reader :target_class, :method_name, :matchers, :return_value, :block, :exception
 
     def initialize(target_class, method_name, &block)
       @target_class = target_class
@@ -9,6 +9,7 @@ module RealityMarble
       @matchers = []
       @return_value = nil
       @block = block
+      @exception = nil
     end
 
     # Match against exact arguments
@@ -37,6 +38,16 @@ module RealityMarble
       self
     end
 
+    # Set exception to raise for this expectation
+    #
+    # @param exception_class [Class] The exception class to raise
+    # @param message [String] Optional exception message
+    # @return [self]
+    def raises(exception_class, message = nil)
+      @exception = { class: exception_class, message: message }
+      self
+    end
+
     # Check if given arguments match any of the matchers
     #
     # @param args [Array] Arguments to test
@@ -59,7 +70,11 @@ module RealityMarble
     # @param args [Array] Arguments (used to select matching return value)
     # @return [Object]
     def call_with(args)
-      if @block
+      if @exception
+        raise @exception[:class], @exception[:message] if @exception[:message]
+
+        raise @exception[:class]
+      elsif @block
         @block.call(*args)
       else
         @return_value
