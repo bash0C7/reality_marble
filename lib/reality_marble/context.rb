@@ -1,12 +1,12 @@
 module RealityMarble
-  # Context: Thread-local management of active marbles with reference counting
+  # Context: Thread-local management of active marbles with reference counting and ownership verification
+  #
+  # Phase 3 Implementation (Context Ownership Tracking):
+  # - Mock methods capture defining_context in closure
+  # - Mock method verifies current_context == defining_context to prevent stack overflow
+  # - Enables safe nested context activation without recursive mock calls
   class Context
     attr_reader :stack
-
-    # 定義時のContext を記録: { Klass => { method_name => Context } }
-    # rubocop:disable Style/ClassVars
-    @@method_owners = {}
-    # rubocop:enable Style/ClassVars
 
     def initialize
       @stack = []
@@ -78,10 +78,6 @@ module RealityMarble
           original_method: method
         }
 
-        # 定義時の Context を記録
-        @@method_owners[klass] ||= {}
-        @@method_owners[klass][method] = self
-
         # Define mock that uses Context stack
         define_mock_method(target, method, klass)
       end
@@ -89,16 +85,14 @@ module RealityMarble
 
     # Define the mock method that dispatches to active marbles
     def define_mock_method(target, method, klass)
-      # Capture stack and context closure
+      # Capture context to verify ownership (prevents stack overflow in nested contexts)
       stack = @stack
       defining_context = self
 
       target.define_method(method) do |*args, **kwargs, &blk|
-        # 現在の Context と定義時の Context を比較
         current_context = Context.current
         return if current_context != defining_context
 
-        # Dispatch using captured context
         call_info = { stack: stack, klass: klass, method: method, args: args, kwargs: kwargs, blk: blk }
         defining_context.execute_dispatch(call_info)
       end

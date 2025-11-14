@@ -3,9 +3,6 @@ require_relative "../test_helper"
 module RealityMarble
   class ContextIntegrationTest < Test::Unit::TestCase
     # Context singleton per thread
-    # TODO: [INFRASTRUCTURE-CONTEXT-DISPATCH] Stack overflow in mock dispatch when multiple tests run
-    # Root cause: MockMethod defined on classes persists across teardowns, causing recursion
-    # Temporary workaround: Mark tests as omit pending fix in next session
     def test_context_current_singleton
       ctx1 = Context.current
       ctx2 = Context.current
@@ -73,6 +70,85 @@ module RealityMarble
       t.join
 
       refute_equal ctx_main, ctx_other
+    end
+
+    # Edge case: Context ownership verification prevents cross-context mock calls
+    def test_context_ownership_isolation
+      marble = Marble.new
+      ctx_main = Context.current
+
+      # Activate marble in main thread
+      ctx_main.push(marble)
+
+      # Define expectation for a test method
+      test_class = Class.new
+      marble.expectations << Expectation.new(test_class, :test_method, -> { "mock result" })
+
+      # Verify mock is set up
+      ctx_main.backup_and_define_methods_for(marble.expectations)
+
+      # Try to call mock from different context (separate thread)
+      result_from_other = nil
+      t = Thread.new do
+        # Other thread has different Context instance
+        refute_equal ctx_main, Context.current
+        # Call test_method - should NOT execute mock due to context mismatch
+        result_from_other = test_class.test_method
+      end
+
+      t.join
+      assert_nil result_from_other, "Mock should not execute in different context"
+
+      # Cleanup
+      ctx_main.pop
+    end
+
+    # Edge case: Method restoration after deactivation
+    def test_method_restoration_after_deactivation
+      test_class = Class.new
+      test_class.define_singleton_method(:original_method) { "original" }
+
+      marble = Marble.new
+      marble.expectations << Expectation.new(test_class, :original_method, -> { "mock" })
+      ctx = Context.current
+
+      # Activate marble
+      ctx.push(marble)
+      assert_equal "mock", test_class.original_method
+
+      # Deactivate marble
+      ctx.pop
+      assert_equal "original", test_class.original_method
+    end
+
+    # Edge case: Nested marbles with same method
+    def test_nested_marbles_same_method
+      test_class = Class.new
+      test_class.define_singleton_method(:shared_method) { "original" }
+
+      marble1 = Marble.new
+      marble1.expectations << Expectation.new(test_class, :shared_method, -> { "mock1" })
+
+      marble2 = Marble.new
+      marble2.expectations << Expectation.new(test_class, :shared_method, -> { "mock2" })
+
+      ctx = Context.current
+
+      # Push first marble
+      ctx.push(marble1)
+      assert_equal "mock1", test_class.shared_method
+
+      # Push second marble - should use newer expectation
+      ctx.push(marble2)
+      assert_equal "mock2", test_class.shared_method
+
+      # Pop second marble
+      ctx.pop
+      assert_equal "mock1", test_class.shared_method
+
+      # Pop first marble
+      ctx.pop
+      assert_equal "original", test_class.shared_method
     end
 
     # Cleanup after each test
