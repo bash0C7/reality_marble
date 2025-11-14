@@ -93,4 +93,27 @@ module RealityMarble
     marble.instance_eval(&block) if block
     marble
   end
+
+  # Simple helper: Mock a single method (convenience method for common patterns)
+  #
+  # Activates immediately. Deactivation happens via Context.reset_current (usually in teardown).
+  # Use this for inline mocking without chant/activate boilerplate.
+  #
+  # @param target_class [Class, Module] The class/module to mock
+  # @param method_name [Symbol] The method name to mock
+  # @yield Block for mock implementation (receives method arguments)
+  # @return [Marble] The configured marble (for call history inspection if needed)
+  #
+  # @example
+  #   RealityMarble.mock(File, :exist?) { |path| path == "/tmp/test" }
+  #   assert File.exist?("/tmp/test")
+  #   refute File.exist?("/other/path")
+  def self.mock(target_class, method_name, &block)
+    marble = chant do
+      expect(target_class, method_name, &block)
+    end
+    ctx = Context.current
+    ctx.push(marble)
+    marble
+  end
 end
