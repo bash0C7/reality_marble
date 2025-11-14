@@ -6,12 +6,16 @@ Next-generation mock/stub library for Ruby 3.4+
 
 **Reality Marble** (固有結界) is a modern mock/stub library that creates isolated, lexically-scoped test doubles for Ruby 3.4+. Inspired by TYPE-MOON's metaphor, it creates a temporary "reality" where method behaviors are overridden only within specific test scopes.
 
+The new native syntax API lets you define mocks using Ruby's native `define_method` syntax, making tests more readable and maintainable.
+
 Key features:
+- 🎯 **Native Ruby Syntax**: Use `define_method` directly, no custom DSL
 - 🎯 **Lexically scoped**: Mocks are isolated to specific test contexts
 - 🚀 **Ruby 3.4+**: Leverages modern Ruby features
 - 🧪 **Test::Unit focused**: Designed for Test::Unit workflow (but framework-agnostic)
 - 🔒 **Thread-safe**: Safe for concurrent test execution
 - 📝 **Simple API**: `chant` to define, `activate` to execute
+- 📦 **Variable Capture**: mruby/c-style `capture:` option for passing variables into blocks
 
 ## Requirements
 
@@ -48,260 +52,182 @@ require 'test-unit'
 
 class FileOperationsTest < Test::Unit::TestCase
   def test_file_operations_with_mock
-    # Define a Reality Marble with expectations
+    # Define a Reality Marble with method mocks
+    test_class = File
+
     RealityMarble.chant do
-      expect(File, :exist?) { |path| path == '/mock/path' }
-      expect(FileUtils, :rm_rf) { |path| puts "Mock: Would delete #{path}" }
+      test_class.define_singleton_method(:exist?) do |path|
+        path == '/mock/path'
+      end
     end.activate do
       # Inside this block, mocked methods are active
-      assert File.exist?('/mock/path')
-      refute File.exist?('/other/path')
-
-      FileUtils.rm_rf('/some/path')  # Prints mock message
+      assert test_class.exist?('/mock/path')
+      refute test_class.exist?('/other/path')
     end
 
     # Outside the block, original methods are restored
-    assert_equal File.method(:exist?).source_location, nil  # Built-in method
+    assert test_class.exist?(__FILE__)
   end
 end
 ```
 
-### Mocking System Commands
+### Using capture: for Variable Passing
+
+Pass local variables into the mock block using `capture:` (mruby/c style):
 
 ```ruby
 class GitCommandTest < Test::Unit::TestCase
   def test_git_clone
     git_called = false
+    cmd_match = nil
 
-    RealityMarble.chant do
-      expect(Kernel, :system) do |cmd|
-        git_called = true
-        assert_match(/git clone/, cmd)
-        true  # Simulate success
+    RealityMarble.chant(capture: {git_called: git_called, cmd_match: cmd_match}) do |cap|
+      module Kernel
+        define_method(:system) do |cmd, options = {}|
+          cap[:git_called] = true
+          cap[:cmd_match] = cmd.match?(/git clone/)
+          true  # Simulate success
+        end
       end
     end.activate do
       system('git clone https://example.com/repo.git')
     end
 
-    assert git_called, "Git clone should have been called"
+    assert git_called
+    assert cmd_match
   end
 end
 ```
 
-### Stubbing for Return Values
+Note: In standard mruby, variables are automatically in scope. But in mruby/c (and this implementation), the `capture:` option provides that functionality.
+
+### Mocking Multiple Methods
 
 ```ruby
-class ApiClientTest < Test::Unit::TestCase
-  def test_api_response
+class CalculatorTest < Test::Unit::TestCase
+  def test_math_operations
+    calculator = Class.new
+
     RealityMarble.chant do
-      expect(Net::HTTP, :get) do |uri|
-        case uri.to_s
-        when /users/
-          '{"users": [{"id": 1, "name": "Alice"}]}'
-        when /posts/
-          '{"posts": []}'
-        else
-          '{}'
-        end
+      calculator.define_singleton_method(:add) do |a, b|
+        a + b
+      end
+
+      calculator.define_singleton_method(:multiply) do |a, b|
+        a * b
       end
     end.activate do
-      response = Net::HTTP.get(URI('https://api.example.com/users'))
-      assert_equal '{"users": [{"id": 1, "name": "Alice"}]}', response
+      assert_equal 15, calculator.add(10, 5)
+      assert_equal 50, calculator.multiply(10, 5)
     end
   end
 end
 ```
 
-### Multiple Expectations
+### Mocking Instance Methods
 
 ```ruby
-RealityMarble.chant do
-  expect(File, :exist?) { |path| path.start_with?('/mock') }
-  expect(File, :read) { |path| "Mock content of #{path}" }
-  expect(FileUtils, :mkdir_p) { |path| true }
-end.activate do
-  assert File.exist?('/mock/file.txt')
-  assert_equal "Mock content of /mock/file.txt", File.read('/mock/file.txt')
-  FileUtils.mkdir_p('/mock/dir')
+class UserTest < Test::Unit::TestCase
+  def test_user_save
+    user_class = Class.new
+
+    RealityMarble.chant do
+      user_class.define_method(:save) do
+        puts "Mock: User saved to database"
+        true
+      end
+    end.activate do
+      user = user_class.new
+      assert user.save
+    end
+  end
 end
 ```
 
 ## API Reference
 
-### `RealityMarble.chant(&block)`
+### RealityMarble.chant
 
-Creates a new Reality Marble context.
+Defines a new Reality Marble context for mocking methods.
+
+**Syntax:**
+```ruby
+RealityMarble.chant(capture: nil) { |cap| ... }
+```
 
 **Parameters:**
-- `block` (optional): Block for defining expectations using `expect`
+- `capture` (Hash, optional): Variables to pass into the block. Accessed via the block parameter.
 
-**Returns:**
-- `Marble` instance
+**Returns:** Marble object (call `.activate` to use the mocks)
+
+**Block parameter:**
+- `cap` (Hash): Contains the variables passed via `capture:` option
 
 **Example:**
 ```ruby
 marble = RealityMarble.chant do
-  expect(File, :exist?) { |path| true }
+  SomeClass.define_singleton_method(:foo) { "mocked" }
 end
 ```
 
-### `marble.expect(target_class, method_name, &block)`
-
-Defines an expectation (mock/stub) for a method.
-
-**Parameters:**
-- `target_class`: The class or module containing the method
-- `method_name`: Symbol representing the method name
-- `block`: The mock implementation (receives method arguments)
-
-**Returns:**
-- `self` (for method chaining)
-
-**Example:**
+**With variables:**
 ```ruby
-marble.expect(File, :exist?) { |path| path == '/expected' }
-marble.expect(FileUtils, :rm_rf) { |path| puts "Deleting #{path}" }
-```
-
-### `marble.activate(&test_block)`
-
-Activates the Reality Marble for the duration of the test block.
-
-**Parameters:**
-- `test_block`: Block to execute with mocks active
-
-**Returns:**
-- Result of the test block
-
-**Example:**
-```ruby
-result = marble.activate do
-  # Your test code here
-  File.exist?('/some/path')  # Calls mock
+var = {}
+marble = RealityMarble.chant(capture: {var: var}) do |cap|
+  SomeClass.define_singleton_method(:foo) do
+    cap[:var][:called] = true
+  end
 end
 ```
 
-## Design Philosophy
+### Marble#activate
 
-Reality Marble follows these principles:
+Activates the mocks defined in the chant block. Methods are available only within the block.
 
-1. **Isolation**: Mocks are isolated to specific scopes, never polluting the global environment
-2. **Restoration**: Original methods are always restored after the test block
-3. **Simplicity**: Minimal API surface, easy to understand and use
-4. **Safety**: Thread-safe by design, supports concurrent test execution
-5. **Ruby 3.4+**: Takes advantage of modern Ruby features and defaults
-
-## Architecture
-
-Reality Marble uses a combination of techniques:
-
-- **Method redefinition**: Temporarily redefines target methods
-- **Ensure blocks**: Guarantees restoration even if tests fail
-- **Thread-local storage**: Isolates mocks per thread (future enhancement)
-
-For detailed architectural discussion, see [REALITY_MARBLE_TODO.md](../../REALITY_MARBLE_TODO.md) in the parent project.
-
-## Comparison with Other Libraries
-
-| Feature | Reality Marble | RSpec Mocks | Minitest Mock |
-|---------|----------------|-------------|---------------|
-| Ruby Version | 3.4+ | 2.x+ | 2.x+ |
-| Test Framework | Any (Test::Unit focused) | RSpec | Minitest |
-| Scope Isolation | Lexical | Per-example | Manual |
-| API Complexity | Minimal (`chant`/`activate`) | Rich DSL | Simple |
-| Thread Safety | Yes | Yes | Partial |
-
-## Implementation Status
-
-### Completed Phases ✅
-
-- **Phase 0**: Project setup with gem skeleton, gemspec, and test infrastructure
-- **Phase 1**: Core implementation (Chant + Activate + Context management)
-  - Mock definition and activation framework
-  - Thread-local context singleton
-  - Method backup/restore mechanism
-  - Call history tracking
-- **Phase 2**: Advanced features (partial)
-  - Nested marble support with reference counting
-  - Multiple expectation matching
-  - Return value sequences
-  - Exception handling
-  - Block argument support
-- **Phase 3**: Robustness (Context Ownership Tracking)
-  - Stack overflow prevention via context ownership verification
-  - Closure-based defining_context capture
-  - Safe nested context activation
-  - Edge case coverage (isolation, restoration, nested marbles)
-
-**Test Coverage**: 221 tests, 86.32% line coverage, 65.12% branch coverage
-
-### Next Steps (Phase 4+)
-
-#### Phase 4: Special Method Names & Warnings (High Priority)
-- Support for special method names: backtick (`), [], []=, etc.
-- Warning system for non-existent original methods
-- Comprehensive thread safety stress tests
-
-#### Phase 5: Test::Unit Integration Helpers (Medium Priority)
-- Helper methods for common test patterns
-- Expectation DSL enhancements for advanced users
-- Documentation generation templates
-
-#### Phase 6: Documentation & Examples (Medium Priority)
-- Complete API documentation
-- Recipe collection (common patterns)
-- Real-world examples (git, file ops, HTTP, etc.)
-- Integration guide with picotorokko
-
-#### Phase 7: Performance & Release (Low Priority)
-- Benchmark suite and performance optimization
-- Production readiness review
-- Gem publication and versioning
-
-**For development planning**: See [REALITY_MARBLE_TODO.md](../../REALITY_MARBLE_TODO.md) in the parent project for detailed architecture and phase specifications.
-
-## Development
-
-### Setup
-
-```bash
-cd lib/reality_marble
-bundle install
+**Syntax:**
+```ruby
+marble.activate { ... }
 ```
 
-### Running Tests
+**Returns:** The result of the block
+
+**Example:**
+```ruby
+result = RealityMarble.chant do
+  File.define_singleton_method(:read) { |path| "contents" }
+end.activate do
+  File.read('/path/to/file')  # Returns "contents"
+end
+```
+
+## How It Works
+
+Reality Marble uses three key mechanisms:
+
+1. **Method Definition Detection**: When you call `chant`, the library detects which methods you define using `define_method`.
+
+2. **Lazy Application**: The defined methods are removed after the chant block, then reapplied during `activate` so mocks are only active when needed.
+
+3. **Automatic Cleanup**: After the activate block exits, all mocks are removed and original methods are restored.
+
+This ensures mocks don't leak across tests and maintain perfect isolation.
+
+## Thread Safety
+
+Reality Marble uses thread-local storage for the mock context stack, making it safe for concurrent test execution.
+
+## Testing
+
+Run the test suite:
 
 ```bash
 bundle exec rake test
 ```
 
-### Running RuboCop
-
-```bash
-bundle exec rake rubocop
-```
-
-### Running CI (Tests + RuboCop + Coverage)
-
-```bash
-bundle exec rake ci
-```
-
-### Development Workflow (Auto-fix + Tests)
-
-```bash
-bundle exec rake dev
-```
-
 ## Contributing
 
-Bug reports and pull requests are welcome on GitHub at https://github.com/bash0C7/reality_marble.
+Bug reports and pull requests are welcome on GitHub.
 
 ## License
 
-The gem is available as open source under the terms of the [MIT License](LICENSE).
-
-## Credits
-
-- Inspired by TYPE-MOON's "Reality Marble" (固有結界) concept
-- Part of the [picotorokko](https://github.com/bash0C7/picotorokko) project ecosystem
+MIT License
