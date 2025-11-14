@@ -7,7 +7,6 @@ module RealityMarble
     # Root cause: MockMethod defined on classes persists across teardowns, causing recursion
     # Temporary workaround: Mark tests as omit pending fix in next session
     def test_context_current_singleton
-      omit("[TODO-INFRASTRUCTURE-CONTEXT-DISPATCH] Stack overflow in mock method dispatch")
       ctx1 = Context.current
       ctx2 = Context.current
       assert_equal ctx1, ctx2
@@ -15,7 +14,6 @@ module RealityMarble
 
     # Context push/pop manages stack
     def test_context_push_pop_stack
-      omit("[TODO-INFRASTRUCTURE-CONTEXT-DISPATCH] Stack overflow in mock method dispatch")
       marble = Marble.new
       ctx = Context.current
 
@@ -31,7 +29,6 @@ module RealityMarble
 
     # Reference counting: only first push triggers setup, only last pop triggers teardown
     def test_context_reference_counting
-      omit("[TODO-INFRASTRUCTURE-CONTEXT-DISPATCH] Stack overflow in mock method dispatch")
       marble1 = Marble.new
       marble2 = Marble.new
       ctx = Context.current
@@ -55,7 +52,6 @@ module RealityMarble
 
     # Marble access from stack
     def test_context_access_marble_from_stack
-      omit("[TODO-INFRASTRUCTURE-CONTEXT-DISPATCH] Stack overflow in mock method dispatch")
       marble = Marble.new
       ctx = Context.current
       ctx.push(marble)
@@ -67,7 +63,6 @@ module RealityMarble
 
     # Thread-local isolation
     def test_context_thread_local
-      omit("[TODO-INFRASTRUCTURE-CONTEXT-DISPATCH] Stack overflow in mock method dispatch")
       ctx_main = Context.current
       ctx_other = nil
 
@@ -82,9 +77,9 @@ module RealityMarble
 
     # Cleanup after each test
     # Note: Context cleanup is automatic via activate's ensure block,
-    # no need to explicitly reset here
-    # def teardown
-    #   Context.reset_current
-    # end
+    # but we must reset for isolation between tests
+    def teardown
+      Context.reset_current
+    end
   end
 end

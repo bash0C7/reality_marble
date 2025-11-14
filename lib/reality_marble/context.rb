@@ -3,6 +3,11 @@ module RealityMarble
   class Context
     attr_reader :stack
 
+    # 定義時のContext を記録: { Klass => { method_name => Context } }
+    # rubocop:disable Style/ClassVars
+    @@method_owners = {}
+    # rubocop:enable Style/ClassVars
+
     def initialize
       @stack = []
       @backed_up_methods = {}
@@ -73,6 +78,10 @@ module RealityMarble
           original_method: method
         }
 
+        # 定義時の Context を記録
+        @@method_owners[klass] ||= {}
+        @@method_owners[klass][method] = self
+
         # Define mock that uses Context stack
         define_mock_method(target, method, klass)
       end
@@ -80,36 +89,69 @@ module RealityMarble
 
     # Define the mock method that dispatches to active marbles
     def define_mock_method(target, method, klass)
-      # Capture stack closure to avoid Context.current recursion
+      # Capture stack and context closure
       stack = @stack
+      defining_context = self
 
       target.define_method(method) do |*args, **kwargs, &blk|
-        matching_exp = nil
-        matching_marble = nil
+        # 現在の Context と定義時の Context を比較
+        current_context = Context.current
+        return if current_context != defining_context
 
-        # Find matching expectation from most recent marble
-        stack.reverse_each do |marble|
-          matching = marble.expectations.find do |e|
-            e.target_class == klass && e.method_name == method && e.matches?(args)
-          end
-          next unless matching
-
-          matching_exp = matching
-          matching_marble = marble
-          break
-        end
-
-        # Record call in all active marbles
-        stack.each { |m| m.call_history[[klass, method]] << CallRecord.new(args: args, kwargs: kwargs) }
-
-        # Execute expectation or block
-        if matching_exp
-          matching_exp.call_with(args, marble: matching_marble)
-        elsif stack.last&.expectations&.find { |e| e.target_class == klass && e.method_name == method }&.block
-          exp_with_block = stack.last.expectations.find { |e| e.target_class == klass && e.method_name == method }
-          exp_with_block.block&.call(*args, **kwargs, &blk)
-        end
+        # Dispatch using captured context
+        call_info = { stack: stack, klass: klass, method: method, args: args, kwargs: kwargs, blk: blk }
+        defining_context.execute_dispatch(call_info)
       end
+    end
+
+    # Execute dispatch with call information
+    def execute_dispatch(call_info)
+      matching_exp, matching_marble = find_matching_expectation(
+        call_info[:stack], call_info[:klass], call_info[:method], call_info[:args]
+      )
+      record_call_in_stack(call_info[:stack], call_info[:klass], call_info[:method],
+                           call_info[:args], call_info[:kwargs])
+      execute_with_expectation(matching_exp, matching_marble, call_info)
+    end
+
+    # Record method call in all active marbles
+    def record_call_in_stack(stack, klass, method, args, kwargs)
+      stack.each { |m| m.call_history[[klass, method]] << CallRecord.new(args: args, kwargs: kwargs) }
+    end
+
+    # Execute with matching expectation or block
+    def execute_with_expectation(matching_exp, matching_marble, call_info)
+      if matching_exp
+        matching_exp.call_with(call_info[:args], marble: matching_marble)
+      elsif (exp_with_block = find_expectation_with_block(call_info[:stack],
+                                                          call_info[:klass],
+                                                          call_info[:method]))
+        exp_with_block.block&.call(*call_info[:args], **call_info[:kwargs], &call_info[:blk])
+      end
+    end
+
+    # Find matching expectation from most recent marble
+    def find_matching_expectation(stack, klass, method, args)
+      matching_exp = nil
+      matching_marble = nil
+
+      stack.reverse_each do |marble|
+        matching = marble.expectations.find do |e|
+          e.target_class == klass && e.method_name == method && e.matches?(args)
+        end
+        next unless matching
+
+        matching_exp = matching
+        matching_marble = marble
+        break
+      end
+
+      [matching_exp, matching_marble]
+    end
+
+    # Find expectation with block in most recent marble
+    def find_expectation_with_block(stack, klass, method)
+      stack.last&.expectations&.find { |e| e.target_class == klass && e.method_name == method && e.block }
     end
 
     # Restore all backed-up methods
