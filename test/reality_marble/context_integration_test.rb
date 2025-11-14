@@ -82,7 +82,7 @@ module RealityMarble
 
       # Define expectation for a test method
       test_class = Class.new
-      marble.expectations << Expectation.new(test_class, :test_method, -> { "mock result" })
+      marble.expectations << Expectation.new(test_class, :test_method) { "mock result" }
 
       # Verify mock is set up
       ctx_main.backup_and_define_methods_for(marble.expectations)
@@ -109,7 +109,7 @@ module RealityMarble
       test_class.define_singleton_method(:original_method) { "original" }
 
       marble = Marble.new
-      marble.expectations << Expectation.new(test_class, :original_method, -> { "mock" })
+      marble.expectations << Expectation.new(test_class, :original_method) { "mock" }
       ctx = Context.current
 
       # Activate marble
@@ -127,10 +127,10 @@ module RealityMarble
       test_class.define_singleton_method(:shared_method) { "original" }
 
       marble1 = Marble.new
-      marble1.expectations << Expectation.new(test_class, :shared_method, -> { "mock1" })
+      marble1.expectations << Expectation.new(test_class, :shared_method) { "mock1" }
 
       marble2 = Marble.new
-      marble2.expectations << Expectation.new(test_class, :shared_method, -> { "mock2" })
+      marble2.expectations << Expectation.new(test_class, :shared_method) { "mock2" }
 
       ctx = Context.current
 

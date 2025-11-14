@@ -46,6 +46,16 @@ module RealityMarble
       restore_all_methods if @stack.empty?
     end
 
+    # Execute dispatch with call information (called from mock method closure)
+    def execute_dispatch(call_info)
+      matching_exp, matching_marble = find_matching_expectation(
+        call_info[:stack], call_info[:klass], call_info[:method], call_info[:args]
+      )
+      record_call_in_stack(call_info[:stack], call_info[:klass], call_info[:method],
+                           call_info[:args], call_info[:kwargs])
+      execute_with_expectation(matching_exp, matching_marble, call_info)
+    end
+
     private
 
     # Backup originals and define mocks for all expectations
@@ -96,16 +106,6 @@ module RealityMarble
         call_info = { stack: stack, klass: klass, method: method, args: args, kwargs: kwargs, blk: blk }
         defining_context.execute_dispatch(call_info)
       end
-    end
-
-    # Execute dispatch with call information
-    def execute_dispatch(call_info)
-      matching_exp, matching_marble = find_matching_expectation(
-        call_info[:stack], call_info[:klass], call_info[:method], call_info[:args]
-      )
-      record_call_in_stack(call_info[:stack], call_info[:klass], call_info[:method],
-                           call_info[:args], call_info[:kwargs])
-      execute_with_expectation(matching_exp, matching_marble, call_info)
     end
 
     # Record method call in all active marbles
