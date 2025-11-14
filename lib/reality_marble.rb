@@ -67,11 +67,61 @@ module RealityMarble
       @call_history[[target_class, method_name]]
     end
 
+    # Store method definitions that were created during chant block
+    # by comparing ObjectSpace before and after execution
+    #
+    # @param before_methods [Hash] Methods before chant block execution
+    def store_defined_methods(before_methods)
+      after_methods = collect_all_methods
+      @defined_methods = diff_methods(before_methods, after_methods)
+    end
+
+    # Apply stored method definitions to their targets
+    def apply_defined_methods
+      @defined_methods.each do |key, method_obj|
+        target, method_name = key
+        target.define_method(method_name, method_obj) if method_obj
+      end
+    end
+
+    # Remove the temporarily defined methods
+    def cleanup_defined_methods
+      @defined_methods.each_key do |key|
+        target, method_name = key
+        target.remove_method(method_name) if target.respond_to?(:remove_method)
+      end
+    end
+
+    # Collect all instance and singleton methods from all modules and classes
+    # Format: {[target, method_name] => method_object}
+    def collect_all_methods
+      methods_hash = {}
+      ObjectSpace.each_object(Module) do |mod|
+        # Collect instance methods
+        mod.instance_methods(false).each do |method_name|
+          methods_hash[[mod, method_name]] = mod.instance_method(method_name)
+        end
+        # Collect singleton methods
+        mod.singleton_methods(false).each do |method_name|
+          methods_hash[[mod.singleton_class, method_name]] = mod.singleton_class.instance_method(method_name)
+        end
+      end
+      methods_hash
+    end
+
+    # Compute difference between two method snapshots
+    def diff_methods(before, after)
+      after.reject { |key, _| before.key?(key) }
+    end
+
     # Activate this Reality Marble for the duration of the block
     #
     # @yield The test block to execute with mocks active
     # @return [Object] The result of the test block
     def activate
+      # Apply defined methods before pushing context
+      apply_defined_methods
+
       # Push to thread-local context (handles backup/define/restore)
       ctx = Context.current
       ctx.push(self)
@@ -81,8 +131,12 @@ module RealityMarble
 
       result
     ensure
+      # Pop context
       ctx = Context.current
       ctx.pop
+
+      # Clean up defined methods
+      cleanup_defined_methods
     end
   end
 
@@ -94,11 +148,21 @@ module RealityMarble
   def self.chant(capture: nil, &block)
     marble = Marble.new(capture: capture)
     if block
+      # Snapshot methods before block execution
+      before_methods = marble.collect_all_methods
+
+      # Execute block (may define new methods)
       if capture
         marble.instance_exec(capture, &block)
       else
         marble.instance_eval(&block)
       end
+
+      # Store the methods that were defined
+      marble.store_defined_methods(before_methods)
+
+      # Immediately remove the defined methods so they're only active during activate
+      marble.cleanup_defined_methods
     end
     marble
   end
