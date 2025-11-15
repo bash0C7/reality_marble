@@ -7,7 +7,7 @@ class EdgeCasesTest < RealityMarbleTestCase
   # Define reusable test helper: parameterized test executor
   def self.define_edge_case_tests(cases)
     cases.each do |test_case|
-      test_name = "test_#{test_case[:name].gsub(/\s+/, '_').downcase}"
+      test_name = "test_#{test_case[:name].gsub(/\s+/, "_").downcase}"
       define_method(test_name) do
         instance_eval(&test_case[:test])
       end
@@ -132,7 +132,7 @@ class EdgeCasesTest < RealityMarbleTestCase
 
         marble = RealityMarble.chant do
           child.define_method(:with_super) do
-            "mocked_" + super()
+            "mocked_#{super()}"
           end
         end
 
@@ -206,11 +206,11 @@ class EdgeCasesTest < RealityMarbleTestCase
       name: "method_missing with mock override",
       test: proc {
         klass = Class.new do
-          def method_missing(name, *args)
+          def method_missing(name, *_args)
             "missing_#{name}"
           end
 
-          def respond_to_missing?(name, include_private = false)
+          def respond_to_missing?(_name, _include_private = false)
             true
           end
         end
@@ -234,7 +234,7 @@ class EdgeCasesTest < RealityMarbleTestCase
       name: "method_missing with super",
       test: proc {
         parent = Class.new do
-          def method_missing(name, *args)
+          def method_missing(_name, *_args)
             "parent_missing"
           end
         end
@@ -277,7 +277,7 @@ class EdgeCasesTest < RealityMarbleTestCase
 
         marble = RealityMarble.chant do
           klass.define_method(:closure_method) do
-            @value + "_mocked"
+            "#{@value}_mocked"
           end
         end
 
@@ -304,7 +304,7 @@ class EdgeCasesTest < RealityMarbleTestCase
 
         marble = RealityMarble.chant do
           klass.define_method(:class_var_method) do
-            @@class_var + "_mocked"
+            "#{@@class_var}_mocked"
           end
         end
 
@@ -322,7 +322,7 @@ class EdgeCasesTest < RealityMarbleTestCase
       test: proc {
         klass = Class.new do
           def proc_method(&block)
-            block.call("original") if block
+            yield("original") if block
           end
         end
 
@@ -347,7 +347,7 @@ class EdgeCasesTest < RealityMarbleTestCase
       name: "Method with multiple arguments and block",
       test: proc {
         klass = Class.new do
-          def multi_arg_method(arg1, arg2, &block)
+          def multi_arg_method(arg1, arg2)
             "original_#{arg1}_#{arg2}"
           end
         end
@@ -355,7 +355,7 @@ class EdgeCasesTest < RealityMarbleTestCase
         obj = klass.new
 
         marble = RealityMarble.chant do
-          klass.define_method(:multi_arg_method) do |arg1, arg2, &block|
+          klass.define_method(:multi_arg_method) do |arg1, arg2|
             "mocked_#{arg1}_#{arg2}"
           end
         end
@@ -422,7 +422,10 @@ class EdgeCasesTest < RealityMarbleTestCase
           end
         end
 
-        klass = Class.new { include mod1; include mod2 }
+        klass = Class.new do
+          include mod1
+          include mod2
+        end
         obj = klass.new
 
         # mod2 is included later, so its method takes precedence
@@ -553,11 +556,11 @@ class EdgeCasesTest < RealityMarbleTestCase
       name: "Respond to check with method_missing",
       test: proc {
         klass = Class.new do
-          def method_missing(name, *args)
+          def method_missing(_name, *_args)
             "missing"
           end
 
-          def respond_to_missing?(name, include_private = false)
+          def respond_to_missing?(_name, _include_private = false)
             true
           end
         end
@@ -620,9 +623,9 @@ class EdgeCasesTest < RealityMarbleTestCase
       name: "3-level nested marble with different methods",
       test: proc {
         klass = Class.new do
-          def method_a; "a_original"; end
-          def method_b; "b_original"; end
-          def method_c; "c_original"; end
+          def method_a = "a_original"
+          def method_b = "b_original"
+          def method_c = "c_original"
         end
 
         obj = klass.new
@@ -886,7 +889,7 @@ class EdgeCasesTest < RealityMarbleTestCase
         # After cleanup, original is restored
         assert_equal "original_public", obj.public_method
       }
-    },
+    }
   ].freeze
 
   define_edge_case_tests(TEST_CASES)
