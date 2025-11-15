@@ -39,11 +39,12 @@ module RealityMarble
 
   # Reality Marble context for managing mocks/stubs
   class Marble
-    attr_reader :call_history, :capture, :defined_methods, :modified_methods, :deleted_methods
+    attr_reader :call_history, :capture, :defined_methods, :modified_methods, :deleted_methods, :only
 
-    def initialize(capture: nil)
+    def initialize(capture: nil, only: nil)
       @call_history = Hash.new { |h, k| h[k] = [] }
       @capture = capture
+      @only = only # Array of classes to monitor (nil = all classes)
       @defined_methods = {}
       @modified_methods = {}
       @deleted_methods = {}
@@ -135,10 +136,18 @@ module RealityMarble
     end
 
     # Collect all instance and singleton methods from all modules and classes
+    # If @only is set, only collect from those classes/modules
     # Format: {[target, method_name] => method_object}
     def collect_all_methods
       methods_hash = {}
-      ObjectSpace.each_object(Module) do |mod|
+      targets = @only || begin
+        # If no restriction, collect from all objects
+        result = []
+        ObjectSpace.each_object(Module) { |mod| result << mod }
+        result
+      end
+
+      targets.each do |mod|
         # Collect instance methods
         mod.instance_methods(false).each do |method_name|
           methods_hash[[mod, method_name]] = mod.instance_method(method_name)
@@ -232,10 +241,11 @@ module RealityMarble
   # Start defining a new Reality Marble
   #
   # @param capture [Hash, nil] Variables to pass into the block
+  # @param only [Array<Class>, nil] Classes to monitor for method changes (nil = all)
   # @yield Block for defining expectations (receives capture hash as parameter)
   # @return [Marble] The configured marble
-  def self.chant(capture: nil, &block)
-    marble = Marble.new(capture: capture)
+  def self.chant(capture: nil, only: nil, &block)
+    marble = Marble.new(capture: capture, only: only)
     if block
       # Snapshot methods before block execution
       before_methods = marble.collect_all_methods

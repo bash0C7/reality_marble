@@ -383,4 +383,49 @@ class MethodLifecycleTest < RealityMarbleTestCase
     # After activate, method should be removed
     assert_raises(NoMethodError) { test_class.test_method }
   end
+
+  def test_only_parameter_restricts_method_collection
+    target_class = Class.new
+    other_class = Class.new
+
+    marble = RealityMarble.chant(only: [target_class]) do
+      target_class.define_singleton_method(:target_method) { "target" }
+      other_class.define_singleton_method(:other_method) { "other" }
+    end
+
+    # Only target_class methods should be detected
+    assert marble.defined_methods.key?([target_class.singleton_class, :target_method])
+    assert !marble.defined_methods.key?([other_class.singleton_class, :other_method])
+  end
+
+  def test_only_parameter_with_multiple_classes
+    class_a = Class.new
+    class_b = Class.new
+    class_c = Class.new
+
+    marble = RealityMarble.chant(only: [class_a, class_b]) do
+      class_a.define_singleton_method(:method_a) { "a" }
+      class_b.define_singleton_method(:method_b) { "b" }
+      class_c.define_singleton_method(:method_c) { "c" }
+    end
+
+    # Only class_a and class_b methods should be detected
+    assert marble.defined_methods.key?([class_a.singleton_class, :method_a])
+    assert marble.defined_methods.key?([class_b.singleton_class, :method_b])
+    assert !marble.defined_methods.key?([class_c.singleton_class, :method_c])
+  end
+
+  def test_only_parameter_activates_correctly
+    test_class = Class.new
+
+    marble = RealityMarble.chant(only: [test_class]) do
+      test_class.define_singleton_method(:value) { "mocked" }
+    end
+
+    marble.activate do
+      assert_equal "mocked", test_class.value
+    end
+
+    assert_raises(NoMethodError) { test_class.value }
+  end
 end

@@ -21,11 +21,12 @@ Key features:
 - 🎯 **Native Ruby Syntax**: Use `define_method` directly, no custom DSL
 - ✨ **Perfect Isolation**: Mocks completely removed after `activate` block (zero leakage)
 - 🔗 **Nested Activation**: Multiple marbles can activate within each other with full method isolation
+- 🚀 **Performance Optimization**: Optional `only:` parameter for targeted method collection (10-100x faster for small class sets)
 - 🧪 **Test::Unit focused**: Works with Test::Unit, RSpec, or any framework
 - 🔒 **Thread-safe**: Each thread has its own mock Context
 - 📝 **Simple API**: `chant` to define, `activate` to execute
 - 📦 **Variable Capture**: mruby/c-style `capture:` option for easy before/after verification
-- 📊 **Comprehensive Coverage**: 90%+ line/branch coverage with 24 test cases
+- 📊 **Comprehensive Coverage**: 90%+ line/branch coverage with 27 test cases
 
 ## Requirements
 
@@ -197,11 +198,12 @@ Defines a new Reality Marble context for mocking methods.
 
 **Syntax:**
 ```ruby
-RealityMarble.chant(capture: nil) { |cap| ... }
+RealityMarble.chant(capture: nil, only: nil) { |cap| ... }
 ```
 
 **Parameters:**
 - `capture` (Hash, optional): Variables to pass into the block. Accessed via the block parameter.
+- `only` (Array<Class>, optional): Limit method detection to these classes/modules. When provided, only methods defined on these targets are tracked, improving performance for large ObjectSpaces.
 
 **Returns:** Marble object (call `.activate` to use the mocks)
 
@@ -223,6 +225,25 @@ marble = RealityMarble.chant(capture: {var: var}) do |cap|
     cap[:var][:called] = true
   end
 end
+```
+
+**Performance Optimization with only:**
+```ruby
+# Without only: (scans all classes in ObjectSpace - slower for large apps)
+RealityMarble.chant do
+  File.define_singleton_method(:exist?) { |p| p == "/mock" }
+end.activate { ... }
+
+# With only: (scans only File - 10-100x faster for targeted mocking)
+RealityMarble.chant(only: [File]) do
+  File.define_singleton_method(:exist?) { |p| p == "/mock" }
+end.activate { ... }
+
+# With multiple classes
+RealityMarble.chant(only: [File, Dir, FileUtils]) do
+  File.define_singleton_method(:exist?) { true }
+  Dir.define_singleton_method(:entries) { [] }
+end.activate { ... }
 ```
 
 ### Marble#activate

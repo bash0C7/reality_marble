@@ -1,16 +1,28 @@
 require "bundler/gem_tasks"
-require "rake/testtask"
 require "English"
 
 # ============================================================================
-# MAIN TEST TASK
+# MAIN TEST TASK (Ruby direct execution - avoids bundler exec issues)
 # ============================================================================
-Rake::TestTask.new(:test) do |t|
-  t.libs << "test"
-  t.libs << "lib"
-  t.test_files = FileList["test/**/*_test.rb"].sort
-  # Ruby warning suppress: method redefinition warnings in test mocks
-  t.ruby_opts = ["-W1"]
+desc "Run all tests with SimpleCov coverage"
+task :test do
+  # Reset coverage before running tests
+  coverage_dir = File.join(Dir.pwd, "coverage")
+  FileUtils.rm_rf(coverage_dir)
+  puts "✓ Coverage directory reset"
+
+  # Run tests using ruby directly (simpler than Rake::TestTask + bundler issues)
+  # Load bundler setup, then test_helper, then all test files
+  ruby_cmd = %(
+    require 'bundler/setup'
+    $LOAD_PATH.unshift File.expand_path('../lib', __FILE__)
+    $LOAD_PATH.unshift File.expand_path('../test', __FILE__)
+    require 'test_helper'
+    Dir.glob('test/**/*_test.rb').sort.each { |f| require_relative(f) }
+  )
+
+  success = system("ruby", "-W1", "-e", ruby_cmd)
+  exit($CHILD_STATUS.exitstatus) unless success
 end
 
 require "rubocop/rake_task"
@@ -55,27 +67,19 @@ task :coverage_validation do
   puts "✓ SimpleCov coverage report validated: #{coverage_file}"
 end
 
-# SimpleCov をリセット（test の前に実行）
-desc "Reset coverage directory before test runs"
-task :reset_coverage do
-  coverage_dir = File.join(Dir.pwd, "coverage")
-  FileUtils.rm_rf(coverage_dir)
-  puts "✓ Coverage directory reset"
-end
-
 # ============================================================================
 # PUBLIC TASKS: CI and Development
 # ============================================================================
 
 # CI task: All tests + RuboCop check + coverage validation (NO auto-correction)
 desc "Run CI: all tests, RuboCop validation, and coverage validation"
-task ci: %i[reset_coverage test rubocop coverage_validation] do
+task ci: %i[test rubocop coverage_validation] do
   puts "\n✓ CI passed! All tests + RuboCop + coverage validated."
 end
 
 # Development task: RuboCop auto-fix, run all tests, validate coverage
 desc "Development: RuboCop auto-fix, run all tests, validate coverage"
-task dev: ["rubocop:fix", :reset_coverage, :test, :coverage_validation] do
+task dev: ["rubocop:fix", :test, :coverage_validation] do
   puts "\n✓ Development checks passed! RuboCop fixed, tests passed, coverage validated."
 end
 
