@@ -1,35 +1,34 @@
-# Reality Marble (固有結界)
+# Reality Marble
 
 [experimental] Mock/stub library for Ruby 3.4+ using native syntax. No custom DSL—just define_method in lexical scope
 
 ## Overview
 
-**Reality Marble** (固有結界 - "fixed boundary") is a modern mock/stub library for Ruby 3.4+. Inspired by TYPE-MOON's Fate series, it creates a temporary "reality" where method behaviors are overridden only within specific test scopes.
+Reality Marble is a modern mock/stub library for Ruby 3.4+. Inspired by TYPE-MOON works, it creates a temporary "reality" where method behaviors are overridden only within specific test scopes.
 
-**Like Fate's magic**: A Reality Marble is a bounded field that overwrites reality with the caster's inner world. When the boundary dissolves, reality returns to normal. In testing:
+Like Fate's magic, a Reality Marble is a bounded field that overwrites reality with the caster's inner world. When the boundary dissolves, reality returns to normal. In testing:
 
-- **`chant`**: Define your alternative reality (write mock methods using native Ruby)
-- **`activate`**: Enter that reality (mocks are ONLY active in this block)
-- **Block exit**: Reality dissolves (all mocks automatically removed, original methods restored)
+- `chant`: Define your alternative reality (write mock methods using native Ruby)
+- `activate`: Enter that reality (mocks are active only in this block)
+- Block exit: Reality dissolves (all mocks automatically removed, original methods restored)
 
-**Native Ruby syntax, no custom DSL**: Just use `define_method`/`define_singleton_method` directly. Mocks are lexically scoped to `activate` blocks—no leakage, no custom syntax to learn.
+Use native Ruby syntax without a custom DSL. Just use `define_method` or `define_singleton_method` directly. Mocks are lexically scoped to `activate` blocks—no leakage between tests, no custom syntax to learn.
 
-**Perfect isolation**: Mocks never leak between tests. Every test gets a clean slate.
+Mocks never leak between tests. Every test gets a clean slate.
 
 Key features:
-- 🎭 **Fate's Reality Marble Philosophy**: Temporary reality that vanishes cleanly
-- 🎯 **Native Ruby Syntax**: Use `define_method` directly, no custom DSL
-- ✨ **Perfect Isolation**: Mocks completely removed after `activate` block (zero leakage)
-- 🔗 **Nested Activation**: Multiple marbles can activate within each other with full method isolation
-- 🚀 **Performance Optimization**: Optional `only:` parameter for targeted method collection (10-100x faster for small class sets)
-- 🔍 **Alias Auto-Detection** (v1.1.0): Automatically mock aliased methods when mocking originals
-- 💎 **Refinement Support** (v1.1.0): Detect and mock methods in Ruby Refinement modules
-- ⚠️ **Smart Warnings** (v1.1.0): Alert users to Refinement `using` keyword requirements
-- 🧪 **Test::Unit focused**: Works with Test::Unit, RSpec, or any framework
-- 🔒 **Thread-safe**: Each thread has its own mock Context
-- 📝 **Simple API**: `chant` to define, `activate` to execute
-- 📦 **Variable Capture**: mruby/c-style `capture:` option for easy before/after verification
-- 📊 **Comprehensive Coverage**: 86.74% line / 61.11% branch coverage with 62 comprehensive tests
+
+- Native Ruby syntax with native `define_method` and `define_singleton_method`—no custom DSL
+- Mocks completely removed after `activate` block (zero leakage)
+- Multiple marbles can activate within each other with full method isolation
+- Optional `only:` parameter for targeted method collection (10-100x faster for small class sets)
+- Alias auto-detection: Automatically mock aliased methods when mocking originals
+- Refinement support: Detect and mock methods in Ruby Refinement modules
+- Smart warnings: Alert users to Refinement `using` keyword requirements
+- Works with Test::Unit, RSpec, or any framework
+- Thread-safe: Each thread has its own mock Context
+- Simple API: `chant` to define, `activate` to execute
+- Variable capture: mruby/c-style `capture:` option for passing variables
 
 ## Requirements
 
@@ -199,28 +198,28 @@ end
 
 Defines a new Reality Marble context for mocking methods.
 
-**Syntax:**
+Syntax:
 ```ruby
 RealityMarble.chant(capture: nil, only: nil) { |cap| ... }
 ```
 
-**Parameters:**
+Parameters:
 - `capture` (Hash, optional): Variables to pass into the block. Accessed via the block parameter.
 - `only` (Array<Class>, optional): Limit method detection to these classes/modules. When provided, only methods defined on these targets are tracked, improving performance for large ObjectSpaces.
 
-**Returns:** Marble object (call `.activate` to use the mocks)
+Returns: Marble object (call `.activate` to use the mocks)
 
-**Block parameter:**
+Block parameter:
 - `cap` (Hash): Contains the variables passed via `capture:` option
 
-**Example:**
+Example:
 ```ruby
 marble = RealityMarble.chant do
   SomeClass.define_singleton_method(:foo) { "mocked" }
 end
 ```
 
-**With variables:**
+With variables:
 ```ruby
 var = {}
 marble = RealityMarble.chant(capture: {var: var}) do |cap|
@@ -230,7 +229,7 @@ marble = RealityMarble.chant(capture: {var: var}) do |cap|
 end
 ```
 
-**Performance Optimization with only:**
+Performance optimization with only:
 ```ruby
 # Without only: (scans all classes in ObjectSpace - slower for large apps)
 RealityMarble.chant do
@@ -253,14 +252,14 @@ end.activate { ... }
 
 Activates the mocks defined in the chant block. Methods are available only within the block.
 
-**Syntax:**
+Syntax:
 ```ruby
 marble.activate { ... }
 ```
 
-**Returns:** The result of the block
+Returns: The result of the block
 
-**Example:**
+Example:
 ```ruby
 result = RealityMarble.chant do
   File.define_singleton_method(:read) { |path| "contents" }
@@ -269,9 +268,9 @@ end.activate do
 end
 ```
 
-## Advanced Patterns and Complex Scenarios
+## Ruby Patterns
 
-Reality Marble handles sophisticated Ruby patterns that many mock libraries struggle with:
+Reality Marble handles various Ruby patterns:
 
 ### Handling method_missing and Dynamic Dispatch
 
@@ -443,34 +442,35 @@ end
 
 ## How It Works
 
-Reality Marble uses advanced mechanisms to provide perfect mock isolation:
+Reality Marble works through the following mechanisms:
 
-1. **Method Definition Detection**: When you call `chant`, the library uses ObjectSpace scanning to detect all methods defined during the block execution, including both new methods and modifications to existing methods.
+1. Method Definition Detection: When you call `chant`, the library uses ObjectSpace scanning to detect all methods defined during the block execution, including both new methods and modifications to existing methods.
 
-2. **Lazy Application Pattern**: The defined methods are removed immediately after the chant block, then reapplied only during `activate`. This ensures mocks are only active when needed and prevents any accidental leakage.
+2. Lazy Application Pattern: The defined methods are removed immediately after the chant block, then reapplied only during `activate`. This ensures mocks are only active when needed and prevents leakage.
 
-3. **Method Lifecycle Tracking**: Each marble tracks which methods it applied via `@applied_methods` to ensure proper cleanup even in nested scenarios.
+3. Method Lifecycle Tracking: Each marble tracks which methods it applied via `@applied_methods` to ensure proper cleanup even in nested scenarios.
 
-4. **Nested Activation Support**: When marbles are activated within each other:
+4. Nested Activation Support: When marbles are activated within each other:
    - Inner marble detects outer marble's applied methods via `adjust_for_nested_activation`
    - Tracks outer methods as "modified" to restore them after inner cleanup
-   - Perfect isolation maintained at each nesting level
+   - Isolation is maintained at each nesting level
 
-5. **Automatic Cleanup**: After the activate block exits, all mocks are removed and original methods (including those modified by outer marbles) are restored correctly.
+5. Automatic Cleanup: After the activate block exits, all mocks are removed and original methods (including those modified by outer marbles) are restored correctly.
 
-This ensures mocks never leak across tests and maintain perfect isolation even with complex nested scenarios.
+Mocks never leak across tests, even in nested scenarios.
 
 ## Known Limitations
 
-Reality Marble supports 95%+ of Ruby patterns, but has a few known limitations:
+Reality Marble supports most Ruby patterns. Here are the known limitations:
 
-### 1. Aliased Methods (v1.1.0+: Partially Resolved)
+### 1. Aliased Methods
 
-**Status (v1.1.0)**: Alias auto-detection implemented - aliases are automatically mocked when you mock the original method.
+Status: Alias auto-detection is implemented—aliases are automatically mocked when you mock the original method.
 
-When using `alias_method`, the alias points to the original Method object. Reality Marble now automatically detects and applies mocks to all aliases.
+When using `alias_method`, the alias points to the original Method object. Reality Marble automatically detects and applies mocks to all aliases.
 
-**Example**: The following code automatically mocks both `original` and its alias:
+Example: The following code automatically mocks both `original` and its alias:
+
 ```ruby
 class Example
   def original; "original"; end
@@ -487,23 +487,24 @@ end.activate { ... }
 
 All mocked methods are public by default. Private/protected visibility is not preserved during the `activate` block.
 
-**Workaround**: Use `.send()` to call private methods in tests:
+Workaround: Use `.send()` to call private methods in tests:
+
 ```ruby
 obj.send(:private_method)  # Call private method
 ```
 
-**Infrastructure Note**: Visibility tracking infrastructure is in place (`detect_visibility`, `store_visibility`, `restore_visibility`) for potential future improvements.
+Infrastructure note: Visibility tracking infrastructure is in place (`detect_visibility`, `store_visibility`, `restore_visibility`) for potential future improvements.
 
-### 3. Refinements (v1.1.0+: Improved Support)
+### 3. Refinements
 
-**Status (v1.1.0)**: Full support for detecting and mocking Refinement methods with warnings.
+Status: Full support for detecting and mocking Refinement methods with warnings.
 
-Refinements are now fully supported! Reality Marble can:
+Reality Marble fully supports refinements:
 - Detect Refinement modules via ObjectSpace
 - Mock methods within Refinements
 - Warn users about the `using` keyword requirement
 
-**Important**: Refinements require the `using` keyword for lexical scope activation. Reality Marble warns you when mocking Refinements to remind you of this Ruby language constraint.
+Note: Refinements require the `using` keyword for lexical scope activation. Reality Marble warns you when mocking Refinements to remind you of this Ruby language constraint.
 
 ```ruby
 module MyRefinement
@@ -536,22 +537,6 @@ Run the test suite:
 ```bash
 bundle exec rake test
 ```
-
-**Coverage**: 62 comprehensive tests (86.74% line / 61.11% branch) including:
-
-**Core Features** (58 tests from v1.0.0):
-- Module patterns (include, extend, prepend, mixins)
-- Inheritance hierarchies (deep nesting, super keyword)
-- method_missing and introspection
-- Closures and class variables
-- Singleton methods and classes
-- Nested activation (2-5 levels deep)
-
-**v1.1.0 Enhancements** (4 additional tests):
-- Alias auto-detection and automatic mocking
-- Refinement module detection via ObjectSpace
-- Refinement method introspection
-- Refinement method mocking capabilities
 
 ## Contributing
 
