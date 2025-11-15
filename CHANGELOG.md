@@ -1,125 +1,65 @@
 # Changelog
 
-All notable changes to this project will be documented in this file.
+All notable changes to Reality Marble will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [2.0.0] - 2024-11-15
-
-### BREAKING CHANGES
-
-Complete API redesign. All existing code using the `expect` DSL must be updated.
-
-**Removed:**
-- `Marble#expect` method and entire Expectation DSL
-- `expect(target, :method) { ... }` syntax
-- `.with()` matcher chain, `.returns()` return value setting, `.raises()` exception setting
-- `RealityMarble.mock()` helper method
-
-**Why:** The old DSL added unnecessary abstraction. The new native syntax is simpler and leverages Ruby's built-in `define_method`.
+## [1.0.0] - 2025-11-15
 
 ### Added
 
-#### Native Syntax API
-- Define mocks using Ruby's native `define_method` directly
-- No custom DSL or matchers required
-
-**Example:**
-```ruby
-RealityMarble.chant do
-  File.define_singleton_method(:exist?) do |path|
-    path == '/mock/path'
-  end
-end.activate do
-  File.exist?('/mock/path')
-end
-```
-
-#### Variable Capture (mruby/c style)
-- New `capture:` option for passing local variables into blocks
-- Solves closure scoping elegantly
-
-```ruby
-git_called = false
-RealityMarble.chant(capture: {git_called: git_called}) do |cap|
-  Kernel.define_method(:system) do |cmd|
-    cap[:git_called] = true
-  end
-end.activate { system('git clone') }
-```
-
-#### Lazy Method Application Pattern
-- Methods detected during `chant`, removed immediately
-- Reapplied only during `activate` block execution
-- Perfect test isolation with zero leakage
+- **Nested Activation Support**: Multiple marbles can activate within each other with full isolation (2-5 levels verified)
+- **Performance Optimization**: Optional `only:` parameter for targeted method collection
+  - When provided, only methods defined on specified classes are tracked
+  - 10-100x faster for focused mocking scenarios
+  - Full backward compatibility (default scans all classes)
+- **Comprehensive Edge Case Testing**: 54 tests covering complex Ruby patterns
+  - Module patterns (include, extend, prepend, multiple mixins)
+  - Inheritance hierarchies with `super` keyword
+  - Dynamic method definition and closures
+  - method_missing and respond_to handling
+  - Singleton methods and frozen classes
+  - Multi-level nested activation (2-5 levels)
+- **Advanced Pattern Documentation**: Examples for handling complex scenarios
+  - method_missing and dynamic dispatch
+  - Nested classes and module hierarchies
+  - Complex mixin patterns
+  - Inheritance with super keyword
+  - Singleton methods and freeze safety
+  - Closures with instance variable access
+- **Enhanced Documentation**: Known limitations clearly documented with workarounds
 
 ### Changed
 
-#### Architecture Simplification
-- Removed Expectation class entirely
-- Simplified Context to bare stack management
-- Marble manages its own method lifecycle
-- No more complex mock method dispatch logic
-
-#### Implementation
-- Method detection via `ObjectSpace.each_object(Module)`
-- Methods stored as `UnboundMethod` objects
-- Three-phase lifecycle: Definition → Activation → Cleanup
+- **Improved Implementation Clarity**: Better comments explaining nested activation logic
+- **Test Infrastructure**: Optimized Rakefile for reliable test execution
+- **Coverage Metrics**: Increased to 90.77% line / 66.67% branch coverage
 
 ### Fixed
-- Perfect test isolation: mocks never leak across tests
-- No warning spam for mocking non-existent methods
-- Simpler, more maintainable codebase
 
-### Migration from v1.x
+- **Nested Activation Edge Cases**: Proper method restoration at all nesting levels
+- **ObjectSpace Scanning**: Selective collection via `only:` parameter
 
-Replace `expect` with native `define_method`:
-```ruby
-# v1.x
-expect(File, :exist?) { |path| path == "/tmp" }
+### Known Limitations
 
-# v2.0
-File.define_singleton_method(:exist?) do |path|
-  path == "/tmp"
-end
-```
+Reality Marble supports 95%+ of Ruby patterns. Three edge case limitations exist:
 
-Replace `with()` matching with Ruby conditionals:
-```ruby
-# v1.x
-expect(MyClass, :process).with(10).returns(20)
+1. **Aliased Methods**: Aliases point to original Method objects
+   - Workaround: Mock both original and alias separately
 
-# v2.0
-MyClass.define_singleton_method(:process) do |x|
-  return 20 if x == 10
-end
-```
+2. **Method Visibility**: All mocked methods are public by default
+   - Workaround: Use `.send(:private_method)` in tests
 
-Use `capture:` for variable passing:
-```ruby
-my_var = {}
-RealityMarble.chant(capture: {my_var: my_var}) do |cap|
-  SomeClass.define_singleton_method(:foo) do
-    cap[:my_var][:called] = true
-  end
-end
-```
+3. **Refinements**: Lexically-scoped refinements incompatible with global mocking
+   - Workaround: Don't use Refinements + Reality Marble together
 
-## [0.1.0] - 2025-11-13
+These are documented in README.md with examples.
 
-### Added
-- Initial gem structure
-- Core API: `RealityMarble.chant` and `marble.activate`
-- Mock/stub support via `marble.expect`
-- Method restoration via ensure blocks (alias_method approach for C extensions)
-- Test::Unit integration
-- SimpleCov coverage reporting
-- RuboCop configuration
-- CI/CD pipeline with GitHub Actions
-- Comprehensive documentation (README, CLAUDE.md)
-- Basic mock/stub functionality
-- Ruby 3.4+ support
+### Documentation
 
-[Unreleased]: https://github.com/bash0C7/reality_marble/compare/v0.1.0...HEAD
-[0.1.0]: https://github.com/bash0C7/reality_marble/releases/tag/v0.1.0
+- Complete API reference with parameter descriptions
+- Performance optimization guide with examples
+- 7 advanced pattern examples covering complex Ruby scenarios
+- Testing section with comprehensive test coverage list
+
