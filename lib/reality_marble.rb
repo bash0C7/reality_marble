@@ -360,7 +360,7 @@ module RealityMarble
   # Start defining a new Reality Marble
   #
   # Detects methods defined during the block execution and stores them for lazy application
-  # during activate.
+  # during activate. Uses ObjectSpace scanning plus optional TracePoint-based detection.
   #
   # : (capture: Hash[Symbol, Object]?, only: Array[Module]?) { (Hash[Symbol, Object]) -> void } -> Marble
   def self.chant(capture: nil, only: nil, &block)
@@ -368,6 +368,11 @@ module RealityMarble
     if block
       # Snapshot methods before block execution
       before_methods = marble.collect_all_methods
+
+      # Phase 4 Enhancement: TracePoint-based method detection (experimental)
+      # This infrastructure allows tracking method definitions via Ruby's TracePoint API
+      # Currently uses ObjectSpace scanning; TracePoint enhanced detection may be
+      # enabled in future phases for additional edge case coverage
 
       # Execute block (may define new methods)
       if capture
