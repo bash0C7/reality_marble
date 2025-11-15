@@ -61,6 +61,7 @@ module RealityMarble
       @modified_methods = {}
       @deleted_methods = {}
       @applied_methods = Set.new # Track methods this marble applied
+      @visibility = {} # Track visibility of private/protected methods
     end
 
     # Get call history for a specific method
@@ -68,6 +69,108 @@ module RealityMarble
     # : (target_class: Module, method_name: Symbol) -> Array[CallRecord]
     def calls_for(target_class, method_name)
       @call_history[[target_class, method_name]]
+    end
+
+    # Detect visibility (public, private, or protected) of a method
+    #
+    # : (target: Module, method_name: Symbol) -> Symbol
+    def detect_visibility(target, method_name)
+      if target.private_instance_methods(false).include?(method_name)
+        :private
+      elsif target.protected_instance_methods(false).include?(method_name)
+        :protected
+      else
+        :public
+      end
+    end
+
+    # Store visibility of methods before they are mocked
+    #
+    # : () -> void
+    def store_visibility
+      @visibility = {}
+      # Store visibility for modified, deleted, and newly defined methods
+      [@modified_methods, @deleted_methods, @defined_methods].each do |method_hash|
+        method_hash.each_key do |key|
+          target, method_name = key
+          vis = detect_visibility(target, method_name)
+          @visibility[key] = vis
+        end
+      end
+    end
+
+    # Restore visibility of methods after cleanup
+    #
+    # : () -> void
+    def restore_visibility
+      @visibility.each do |key, vis|
+        next if vis == :public # Skip public methods (default visibility)
+
+        target, method_name = key
+        # Only restore visibility for instance methods (not singleton_class)
+        # Check if the method exists before trying to restore visibility
+        target.send(vis, method_name) if target.instance_methods(false).include?(method_name)
+      end
+    end
+
+    # Detect aliases for a method by comparing UnboundMethod objects
+    #
+    # : (target: Module, method_name: Symbol) -> Array[Symbol]
+    def detect_aliases(target, method_name)
+      return [] unless target.respond_to?(:instance_methods)
+
+      method = target.instance_method(method_name)
+      aliases = []
+
+      target.instance_methods(false).each do |other_name|
+        next if other_name == method_name
+
+        other_method = target.instance_method(other_name)
+        # Same UnboundMethod object = alias
+        aliases << other_name if method == other_method
+      end
+
+      aliases
+    end
+
+    # Auto-detect and mock aliases for newly defined and modified methods
+    #
+    # For newly defined methods: detect current aliases
+    # For modified methods: detect aliases of the OLD method (before modification)
+    #
+    # : (before_methods: Hash) -> void
+    def auto_mock_aliases(before_methods)
+      # Handle newly defined methods (not in before_methods)
+      @defined_methods.each_key do |key|
+        key
+
+        # For new methods: aliases are methods that currently equal the new implementation
+        # But this may not find anything since aliases point to old method
+        # So we skip new-only methods for now - aliases would have been detected elsewhere
+      end
+
+      # Handle modified methods (exist in both before and after)
+      @modified_methods.each do |key, old_method|
+        target, method_name = key
+
+        # For modified methods: find what was aliased to the OLD implementation
+        # by checking all methods in before_methods for that target
+        before_methods.each do |other_key, before_impl|
+          other_target, other_name = other_key
+          next unless other_target == target
+          next if other_name == method_name
+
+          # If this method pointed to the same implementation as the original method,
+          # it's an alias. We need to mock it too.
+          next unless before_impl == old_method
+
+          new_method_obj = @defined_methods[key]
+          alias_key = [target, other_name]
+          unless @defined_methods.key?(alias_key) || @modified_methods.key?(alias_key)
+            @defined_methods[alias_key] = new_method_obj
+          end
+        end
+      end
     end
 
     # Store method definitions that were created during chant block
@@ -105,6 +208,10 @@ module RealityMarble
       @defined_methods = new_methods
       @modified_methods = modified_methods
       @deleted_methods = deleted_methods
+      # Auto-detect and mock aliases
+      auto_mock_aliases(before_methods)
+      # Store visibility before activation
+      store_visibility
     end
 
     # Apply stored method definitions to their targets
@@ -143,6 +250,9 @@ module RealityMarble
         target, method_name = key
         target.define_method(method_name, original_method)
       end
+
+      # Restore visibility after cleanup
+      restore_visibility
     end
 
     # Collect all instance and singleton methods from all modules and classes
