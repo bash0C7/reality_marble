@@ -39,12 +39,14 @@ module RealityMarble
 
   # Reality Marble context for managing mocks/stubs
   class Marble
-    attr_reader :call_history, :capture, :defined_methods
+    attr_reader :call_history, :capture, :defined_methods, :modified_methods, :deleted_methods
 
     def initialize(capture: nil)
       @call_history = Hash.new { |h, k| h[k] = [] }
       @capture = capture
       @defined_methods = {}
+      @modified_methods = {}
+      @deleted_methods = {}
     end
 
     # Get call history for a specific method
@@ -62,7 +64,35 @@ module RealityMarble
     # @param before_methods [Hash] Methods before chant block execution
     def store_defined_methods(before_methods)
       after_methods = collect_all_methods
-      @defined_methods = diff_methods(before_methods, after_methods)
+
+      # 新規メソッド = after に存在し before に存在しない
+      new_methods = {}
+      # 変更されたメソッド = 両方に存在し Method が異なる
+      modified_methods = {}
+      # 削除されたメソッド = before に存在し after に存在しない
+      deleted_methods = {}
+
+      after_methods.each do |key, after_method|
+        if before_methods.key?(key)
+          before_method = before_methods[key]
+          # Method オブジェクトが異なれば、上書きされている
+          if before_method != after_method
+            modified_methods[key] = before_method
+            # activate 中に新しい実装を apply するために @defined_methods に保存
+            new_methods[key] = after_method
+          end
+        else
+          new_methods[key] = after_method
+        end
+      end
+
+      before_methods.each do |key, before_method|
+        deleted_methods[key] = before_method unless after_methods.key?(key)
+      end
+
+      @defined_methods = new_methods
+      @modified_methods = modified_methods
+      @deleted_methods = deleted_methods
     end
 
     # Apply stored method definitions to their targets
@@ -73,11 +103,24 @@ module RealityMarble
       end
     end
 
-    # Remove the temporarily defined methods
+    # Remove the temporarily defined methods and restore modified/deleted ones
     def cleanup_defined_methods
+      # 新規メソッドを削除
       @defined_methods.each_key do |key|
         target, method_name = key
         target.remove_method(method_name) if target.respond_to?(:remove_method)
+      end
+
+      # 変更されたメソッドを元に戻す
+      @modified_methods.each do |key, original_method|
+        target, method_name = key
+        target.define_method(method_name, original_method)
+      end
+
+      # 削除されたメソッドを復元
+      @deleted_methods.each do |key, original_method|
+        target, method_name = key
+        target.define_method(method_name, original_method)
       end
     end
 
