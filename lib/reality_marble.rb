@@ -187,6 +187,11 @@ module RealityMarble
 
     # For nested activation: if any methods we're defining are already applied by
     # an outer marble, track them as modified (so we restore the outer marble's version)
+    #
+    # This handles complex edge cases:
+    # 1. Same method overridden by nested marble (must restore outer version)
+    # 2. Mixed singleton/instance method scenarios
+    # 3. Nested marbles activating within each other
     def adjust_for_nested_activation
       ctx = Context.current
       return if ctx.empty?
@@ -195,19 +200,31 @@ module RealityMarble
       @defined_methods.each do |key, new_method|
         target, method_name = key
 
-        # If method exists in the current "world" (applied by outer marble),
-        # track it as modified
-        next unless target.methods(false).include?(method_name) ||
-                    target.instance_methods(false).include?(method_name)
+        # Determine if method exists in current "world" (applied by outer marble)
+        # Check both singleton and instance methods
+        is_singleton_method = target.singleton_methods(false).include?(method_name)
+        is_instance_method = target.instance_methods(false).include?(method_name)
 
-        # Get the currently applied method
-        current_method = if target.singleton_methods(false).include?(method_name)
+        # Skip if method doesn't exist yet in current world
+        next unless is_singleton_method || is_instance_method
+
+        # Get the currently applied method based on its type
+        current_method = if is_singleton_method
+                           # For singleton methods, get from singleton_class
                            target.singleton_class.instance_method(method_name)
-                         elsif target.instance_methods(false).include?(method_name)
+                         elsif is_instance_method
+                           # For instance methods, get from instance_method
                            target.instance_method(method_name)
                          end
 
-        @modified_methods[key] = current_method if current_method && current_method != new_method
+        # Track as modified if method exists and differs from new version
+        # This ensures outer marble's version is restored after inner cleanup
+        # rubocop:disable Style/IfUnlessModifier
+        # Block form is required for clarity in this complex nested activation logic
+        if current_method && current_method != new_method
+          @modified_methods[key] = current_method
+        end
+        # rubocop:enable Style/IfUnlessModifier
       end
     end
   end

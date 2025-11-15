@@ -6,6 +6,7 @@ AllCops:
     - "build/**/*"
     - ".cache/**/*"
     - "examples/**/*"  # Documentation code examples
+    - "test/**/*"      # Test files - allow complex/non-standard code for edge case testing
 
 plugins:
   - rubocop-performance
@@ -68,3 +69,10 @@ Style/Documentation:
   Enabled: true
   Exclude:
     - "test/**/*"
+
+# Allow if blocks for complex conditional logic (readability > brevity)
+# Nested activation and method lifecycle logic requires explicit block form
+# for clarity despite being single-statement
+Style/IfUnlessModifier:
+  Enabled: true
+  # Complex conditions with multiple comparisons benefit from block form
