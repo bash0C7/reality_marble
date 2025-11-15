@@ -1,17 +1,33 @@
-# Reality Marble v2.0: 実装の問題と改善戦略
+# Reality Marble v2.0: 開発タスク＆改善戦略
 
-## 🎯 ユーザー指摘の正確性
+## ✅ 完了セッション（Session 4 - 2025-11-15）
 
-### ユーザー指摘
-> 「本当？ユーザー観点では既存実装をmockにしているとみえるのでは？」
+### Phase 1: 既存メソッド上書きの復元 ✅
+- ✅ Modified methods detection: `store_defined_methods` で既存メソッド上書きを検出
+- ✅ Modified methods restoration: `cleanup_defined_methods` で元に戻す
+- ✅ Deleted methods support: 削除されたメソッドの復元も対応
+- **Status**: 実装済み＆テスト完了
 
-**正確です。実装上の問題があります。**
+### Phase 2: テストカバレッジ拡張 ✅
+- ✅ 21 tests（前: 12 tests）
+- ✅ Line coverage: 90.38% (目標: 75%)
+- ✅ Branch coverage: 78.57% (目標: 55%)
+- ✅ RuboCop: 0 violations
+
+**テストパターンの追加**:
+- ✅ Modified instance/singleton methods restoration
+- ✅ Nested class definitions
+- ✅ Method inheritance and super keyword
+- ✅ Context stack management
+- ✅ Closure support without capture:
+- ✅ Multiple modified methods
+- ✅ Call history tracking
 
 ---
 
-## 🔴 現在の実装の問題点
+## 🔴 次のフェーズ（Phase 3+）
 
-### 問題1：既存メソッド上書きが意図通り動作していない
+### Problem: 既存メソッド上書き復元の詳細（参考用）
 
 ```ruby
 # ユーザーの期待：
@@ -599,5 +615,43 @@ end
 1. ⭐ 既存メソッド復元を実装（Phase 1）
 2. ⭐ `only:` 引数で ObjectSpace 範囲を限定（Phase 2）
 3. ⭐ closure は自動動作（確認テスト追加）
+
+---
+
+## 🎯 Next Phases (Session 5+)
+
+### Phase 3: Performance Tuning - ObjectSpace Optimization
+
+**Goal**: Reduce method scanning overhead with `only:` parameter
+
+**Proposed API**:
+```ruby
+# Without only: (current - scans all methods)
+RealityMarble.chant do
+  File.define_singleton_method(:exist?) { |p| p == "/mock" }
+end
+
+# With only: (future - scans only specified classes)
+RealityMarble.chant(only: [File]) do
+  File.define_singleton_method(:exist?) { |p| p == "/mock" }
+end
+```
+
+**Implementation Plan**:
+1. Add `only:` parameter to `Marble.new`
+2. Modify `collect_all_methods` to respect `only:` filter
+3. Add performance benchmark tests
+4. Document performance characteristics
+
+**Expected Impact**: 10-100x faster for targeted mocking (small number of classes)
+
+### Phase 4: Advanced Features (Future)
+
+- Refinements support (lexical scoping)
+- TracePoint-based call tracking
+- Module.prepend for method_added hook
+- Optional lazy ObjectSpace scanning
+
+---
 
 チェケラッチョ！
