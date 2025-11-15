@@ -11,18 +11,12 @@ task :test do
   FileUtils.rm_rf(coverage_dir)
   puts "✓ Coverage directory reset"
 
-  # Run tests using ruby directly (simpler than Rake::TestTask + bundler issues)
-  # Load bundler setup, then test_helper, then all test files
-  ruby_cmd = %(
-    require 'bundler/setup'
-    $LOAD_PATH.unshift File.expand_path('../lib', __FILE__)
-    $LOAD_PATH.unshift File.expand_path('../test', __FILE__)
-    require 'test_helper'
-    Dir.glob('test/**/*_test.rb').sort.each { |f| require_relative(f) }
-  )
+  # Run tests using ruby -I flags and require 'bundler/setup'
+  # This avoids issues with bundle exec picking up parent Gemfile
+  system("ruby", "-W1", "-I", "lib", "-I", "test",
+         "-e", "require 'bundler/setup'; require 'test_helper'; Dir.glob('test/**/*_test.rb').sort.each { |f| require_relative(f) }")
 
-  success = system("ruby", "-W1", "-e", ruby_cmd)
-  exit($CHILD_STATUS.exitstatus) unless success
+  exit($CHILD_STATUS.exitstatus) unless $CHILD_STATUS.success?
 end
 
 require "rubocop/rake_task"

@@ -266,6 +266,178 @@ end.activate do
 end
 ```
 
+## Advanced Patterns and Complex Scenarios
+
+Reality Marble handles sophisticated Ruby patterns that many mock libraries struggle with:
+
+### Handling method_missing and Dynamic Dispatch
+
+```ruby
+class DynamicAPI
+  def method_missing(name, *args)
+    "dynamic_#{name}"
+  end
+end
+
+RealityMarble.chant do
+  DynamicAPI.define_method(:fetch) { "mocked_fetch" }
+end.activate do
+  api = DynamicAPI.new
+  assert_equal "mocked_fetch", api.fetch  # Direct method takes precedence
+  assert_equal "dynamic_other", api.other  # Falls through to method_missing
+end
+```
+
+### Nested Classes and Module Hierarchies
+
+```ruby
+module API
+  class Client
+    def initialize(endpoint)
+      @endpoint = endpoint
+    end
+
+    def request; "real_request"; end
+  end
+end
+
+RealityMarble.chant do
+  API::Client.define_method(:request) { "mocked_request" }
+end.activate do
+  client = API::Client.new("https://api.example.com")
+  assert_equal "mocked_request", client.request
+end
+
+# Original is restored
+client = API::Client.new("https://api.example.com")
+assert_equal "real_request", client.request
+```
+
+### Complex Mixin Patterns
+
+```ruby
+module Cacheable
+  def cached_value
+    @cache ||= compute_value
+  end
+end
+
+class Service
+  include Cacheable
+
+  def compute_value; "computed"; end
+end
+
+RealityMarble.chant do
+  Service.define_method(:compute_value) { "mocked" }
+end.activate do
+  svc = Service.new
+  # Mocks work through mixin chains
+  svc.instance_variable_set(:@cache, nil)
+  assert_equal "mocked", svc.cached_value
+end
+```
+
+### Multiple Mixins with Same Method
+
+```ruby
+module LoggerA
+  def log; "logger_a"; end
+end
+
+module LoggerB
+  def log; "logger_b"; end
+end
+
+class App
+  include LoggerA
+  include LoggerB
+end
+
+RealityMarble.chant do
+  # Mock the resolved method (from LoggerB due to inclusion order)
+  App.define_method(:log) { "mocked_log" }
+end.activate do
+  app = App.new
+  assert_equal "mocked_log", app.log
+end
+```
+
+### Inheritance with super Keyword
+
+```ruby
+class BaseHandler
+  def handle(request)
+    "base:#{request}"
+  end
+end
+
+class ExtendedHandler < BaseHandler
+  def handle(request)
+    "extended:#{super}"
+  end
+end
+
+RealityMarble.chant do
+  BaseHandler.define_method(:handle) do |request|
+    "mocked:#{request}"
+  end
+end.activate do
+  handler = ExtendedHandler.new
+  # super in mocked method calls the mock
+  assert_equal "extended:mocked:data", handler.handle("data")
+end
+```
+
+### Freeze Safety and Singleton Methods
+
+```ruby
+class ImmutableConfig
+  def self.value; "original"; end
+end
+
+RealityMarble.chant do
+  ImmutableConfig.define_singleton_method(:value) { "mocked" }
+end.activate do
+  assert_equal "mocked", ImmutableConfig.value
+end
+
+# Works even if class is frozen
+ImmutableConfig.freeze
+RealityMarble.chant do
+  ImmutableConfig.define_singleton_method(:frozen?) { false }
+end.activate do
+  # Mocking still works during activate
+  refute ImmutableConfig.frozen?
+end
+```
+
+### Dynamic Method Definition with Closures
+
+```ruby
+class Calculator
+  def initialize(base)
+    @base = base
+  end
+
+  def add(n)
+    @base + n
+  end
+end
+
+RealityMarble.chant do
+  Calculator.define_method(:add) do |n|
+    # Access instance variables in the mock
+    @base * n  # Mock behavior is different
+  end
+end.activate do
+  calc = Calculator.new(5)
+  assert_equal 25, calc.add(5)  # 5 * 5, not 5 + 5
+end
+```
+
+---
+
 ## How It Works
 
 Reality Marble uses advanced mechanisms to provide perfect mock isolation:
