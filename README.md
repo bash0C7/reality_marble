@@ -1,6 +1,6 @@
 # Reality Marble (固有結界)
 
-Next-generation mock/stub library for Ruby 3.4+
+[experimental] Mock/stub library for Ruby 3.4+ using native syntax. No custom DSL—just define_method in lexical scope
 
 ## Overview
 
@@ -12,7 +12,7 @@ Next-generation mock/stub library for Ruby 3.4+
 - **`activate`**: Enter that reality (mocks are ONLY active in this block)
 - **Block exit**: Reality dissolves (all mocks automatically removed, original methods restored)
 
-**Pure Ruby, no DSL**: Just use `define_method`/`define_singleton_method` directly. No custom syntax to learn.
+**Native Ruby syntax, no custom DSL**: Just use `define_method`/`define_singleton_method` directly. Mocks are lexically scoped to `activate` blocks—no leakage, no custom syntax to learn.
 
 **Perfect isolation**: Mocks never leak between tests. Every test gets a clean slate.
 
