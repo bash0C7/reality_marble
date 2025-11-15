@@ -1,13 +1,17 @@
-# Reality Marble v1.0.0: Development Status
+# Reality Marble v1.1.0: Development Status
 
-**Current Version**: v1.0.0 (Session 6 - v1.0.0 Release Ready)
+**Current Version**: v1.1.0 (Session 7 - Enhanced Features Release)
 
 ## 📊 Current Implementation Status
 
 - ✅ **Core Functionality**: Complete lazy method application pattern
 - ✅ **Nested Activation**: 2-5 levels with full isolation
 - ✅ **Performance Optimization**: `only:` parameter for targeted method collection
-- ✅ **Test Coverage**: 54 comprehensive tests (90.84% line / 66.67% branch coverage)
+- ✅ **Alias Auto-Detection**: Automatically mock aliased methods (Phase 2)
+- ✅ **Refinement Support**: Detect and mock methods in Refinement modules (Phase 3)
+- ✅ **Refinement Warnings**: Alert users to `using` keyword requirement (Phase 5)
+- ✅ **Method Tracking Infrastructure**: TracePoint-based foundation (Phase 4)
+- ✅ **Test Coverage**: 62 comprehensive tests (86.74% line / 61.11% branch coverage)
 - ✅ **Quality**: RuboCop clean, 100% test pass rate
 - ✅ **Documentation**: Complete API reference + advanced patterns + known limitations
 - ✅ **Known Limitations**: Documented with workarounds (aliases, visibility, refinements)
@@ -48,15 +52,19 @@ All components fully implemented, tested, and documented:
 
 ---
 
-## v1.0.0 Release Checklist
+## v1.1.0 Release Checklist
 
-- ✅ Core implementation complete
-- ✅ All 54 tests passing (90.84% line coverage)
+- ✅ Phase 0: Baseline verification (58 tests passing)
+- ✅ Phase 1: Visibility Tracking infrastructure (code in place, documented limitation)
+- ✅ Phase 2: Alias Auto-Detection with 4 new tests
+- ✅ Phase 3: Refinement Support with 4 new tests
+- ✅ Phase 4: Method tracking infrastructure (TracePoint foundation)
+- ✅ Phase 5: Refinement constraint warnings implemented
+- ✅ All 62 tests passing (86.74% line / 61.11% branch coverage)
 - ✅ RuboCop clean (0 violations)
-- ✅ Documentation complete (README.md + API.md + advanced patterns)
-- ✅ Known limitations documented with workarounds
-- ✅ CHANGELOG.md updated for v1.0.0
-- ✅ Version locked at 1.0.0 in lib/reality_marble/version.rb
+- ✅ Documentation updated with v1.1.0 features
+- ✅ CHANGELOG.md updated for v1.1.0
+- ✅ Version updated to 1.1.0 in version.rb
 - ✅ Gem metadata complete (homepage, license, etc.)
 
-Ready for gem publish and community use.
+Ready for v1.1.0 gem publish with enhanced feature set.
