@@ -2,26 +2,37 @@
 
 ## ✅ 完了セッション（Session 4 - 2025-11-15）
 
-### Phase 1: 既存メソッド上書きの復元 ✅
+### Phase 1: 既存メソッド上書きの復元 ✅ COMPLETE
 - ✅ Modified methods detection: `store_defined_methods` で既存メソッド上書きを検出
 - ✅ Modified methods restoration: `cleanup_defined_methods` で元に戻す
 - ✅ Deleted methods support: 削除されたメソッドの復元も対応
-- **Status**: 実装済み＆テスト完了
+- **Status**: 実装済み＆テスト完全カバー
 
-### Phase 2: テストカバレッジ拡張 ✅
-- ✅ 21 tests（前: 12 tests）
-- ✅ Line coverage: 90.38% (目標: 75%)
-- ✅ Branch coverage: 78.57% (目標: 55%)
+### Phase 2: テストカバレッジ拡張 ✅ COMPLETE
+- ✅ 24 tests（前: 12 tests）
+- ✅ Line coverage: **90.32%** (目標: 75%)
+- ✅ Branch coverage: **66.67%** (目標: 55%)
 - ✅ RuboCop: 0 violations
 
-**テストパターンの追加**:
+**テストパターンの追加（21新規）**:
 - ✅ Modified instance/singleton methods restoration
 - ✅ Nested class definitions
 - ✅ Method inheritance and super keyword
-- ✅ Context stack management
+- ✅ Context stack management and isolation
 - ✅ Closure support without capture:
 - ✅ Multiple modified methods
 - ✅ Call history tracking
+- ✅ Nested activation with same method override
+- ✅ Nested activation with different methods
+- ✅ Applied methods tracking
+
+### Phase 2.5: Nested Activation Support ✅ COMPLETE
+- ✅ Implement `@applied_methods` tracking in Marble class
+- ✅ Modify `cleanup_defined_methods` to only remove self-applied methods
+- ✅ Add `adjust_for_nested_activation` for proper method restoration
+- ✅ Support multiple marbles activating within each other
+- ✅ Ensure outer marble's methods are restored after inner cleanup
+- **Status**: Nested activation fully working, all edge cases covered
 
 ---
 
