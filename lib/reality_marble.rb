@@ -29,18 +29,30 @@ require_relative "reality_marble/context"
 #   end.activate do
 #     system('git clone https://example.com/repo.git')
 #   end
+#
+# %a{rbs: RealityMarble}
 module RealityMarble
+  # Exception class for Reality Marble errors
+  #
+  # %a{rbs: class Error < StandardError}
   class Error < StandardError; end
 
   # Thread-local stack of active marbles (for nested activation support)
+  #
+  # : () -> Array[Marble]
   def self.marble_stack
     Thread.current[:reality_marble_stack] ||= []
   end
 
   # Reality Marble context for managing mocks/stubs
+  #
+  # %a{rbs: class Marble}
   class Marble
     attr_reader :call_history, :capture, :defined_methods, :modified_methods, :deleted_methods, :only
 
+    # Initialize a new Marble
+    #
+    # : (capture: Hash[Symbol, Object]?, only: Array[Module]?) -> void
     def initialize(capture: nil, only: nil)
       @call_history = Hash.new { |h, k| h[k] = [] }
       @capture = capture
@@ -53,9 +65,7 @@ module RealityMarble
 
     # Get call history for a specific method
     #
-    # @param target_class [Class, Module] The class/module
-    # @param method_name [Symbol] The method name
-    # @return [Array<CallRecord>] List of call records
+    # : (target_class: Module, method_name: Symbol) -> Array[CallRecord]
     def calls_for(target_class, method_name)
       @call_history[[target_class, method_name]]
     end
@@ -167,8 +177,7 @@ module RealityMarble
 
     # Activate this Reality Marble for the duration of the block
     #
-    # @yield The test block to execute with mocks active
-    # @return [Object] The result of the test block
+    # : () { () -> untyped } -> untyped
     def activate
       # Before applying, check if any methods in the context stack are modified
       # (important for nested activation support)
@@ -240,10 +249,10 @@ module RealityMarble
 
   # Start defining a new Reality Marble
   #
-  # @param capture [Hash, nil] Variables to pass into the block
-  # @param only [Array<Class>, nil] Classes to monitor for method changes (nil = all)
-  # @yield Block for defining expectations (receives capture hash as parameter)
-  # @return [Marble] The configured marble
+  # Detects methods defined during the block execution and stores them for lazy application
+  # during activate.
+  #
+  # : (capture: Hash[Symbol, Object]?, only: Array[Module]?) { (Hash[Symbol, Object]) -> void } -> Marble
   def self.chant(capture: nil, only: nil, &block)
     marble = Marble.new(capture: capture, only: only)
     if block
