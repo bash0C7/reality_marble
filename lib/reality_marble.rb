@@ -173,6 +173,18 @@ module RealityMarble
       end
     end
 
+    # Check if a method is defined in a Refinement module
+    #
+    # : (target: Module) -> void
+    def warn_if_refinement(target)
+      return unless target.instance_of?(::Refinement)
+
+      warn "[RealityMarble] Warning: Mocking methods in Refinement (#{target.inspect}). " \
+           "Remember that Refinements require the 'using' keyword for lexical scope. " \
+           "Mocked methods will be available in activate{} block, but ensure you use " \
+           "'using' in your test code to apply the Refinement context."
+    end
+
     # Store method definitions that were created during chant block
     # by comparing ObjectSpace before and after execution
     #
@@ -188,6 +200,10 @@ module RealityMarble
       deleted_methods = {}
 
       after_methods.each do |key, after_method|
+        target, = key
+        # Warn if method is being defined in a Refinement
+        warn_if_refinement(target)
+
         if before_methods.key?(key)
           before_method = before_methods[key]
           # Method オブジェクトが異なれば、上書きされている
