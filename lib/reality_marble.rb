@@ -47,6 +47,7 @@ module RealityMarble
       @defined_methods = {}
       @modified_methods = {}
       @deleted_methods = {}
+      @applied_methods = Set.new # Track methods this marble applied
     end
 
     # Get call history for a specific method
@@ -96,29 +97,38 @@ module RealityMarble
     end
 
     # Apply stored method definitions to their targets
+    # Track which methods this marble applied for proper cleanup
     def apply_defined_methods
       @defined_methods.each do |key, method_obj|
         target, method_name = key
         target.define_method(method_name, method_obj) if method_obj
+        @applied_methods.add(key)
       end
     end
 
     # Remove the temporarily defined methods and restore modified/deleted ones
+    # Only clean up methods that this marble applied (not other nested marbles)
     def cleanup_defined_methods
-      # 新規メソッドを削除
+      # 新規メソッドを削除（このmarbleが apply したものだけ）
       @defined_methods.each_key do |key|
+        next unless @applied_methods.include?(key)
+
         target, method_name = key
         target.remove_method(method_name) if target.respond_to?(:remove_method)
       end
 
-      # 変更されたメソッドを元に戻す
+      # 変更されたメソッドを元に戻す（このmarbleが apply したものだけ）
       @modified_methods.each do |key, original_method|
+        next unless @applied_methods.include?(key)
+
         target, method_name = key
         target.define_method(method_name, original_method)
       end
 
-      # 削除されたメソッドを復元
+      # 削除されたメソッドを復元（このmarbleが apply したものだけ）
       @deleted_methods.each do |key, original_method|
+        next unless @applied_methods.include?(key)
+
         target, method_name = key
         target.define_method(method_name, original_method)
       end
@@ -151,6 +161,10 @@ module RealityMarble
     # @yield The test block to execute with mocks active
     # @return [Object] The result of the test block
     def activate
+      # Before applying, check if any methods in the context stack are modified
+      # (important for nested activation support)
+      adjust_for_nested_activation
+
       # Apply defined methods before pushing context
       apply_defined_methods
 
@@ -169,6 +183,32 @@ module RealityMarble
 
       # Clean up defined methods
       cleanup_defined_methods
+    end
+
+    # For nested activation: if any methods we're defining are already applied by
+    # an outer marble, track them as modified (so we restore the outer marble's version)
+    def adjust_for_nested_activation
+      ctx = Context.current
+      return if ctx.empty?
+
+      # Check each method we're about to apply
+      @defined_methods.each do |key, new_method|
+        target, method_name = key
+
+        # If method exists in the current "world" (applied by outer marble),
+        # track it as modified
+        next unless target.methods(false).include?(method_name) ||
+                    target.instance_methods(false).include?(method_name)
+
+        # Get the currently applied method
+        current_method = if target.singleton_methods(false).include?(method_name)
+                           target.singleton_class.instance_method(method_name)
+                         elsif target.instance_methods(false).include?(method_name)
+                           target.instance_method(method_name)
+                         end
+
+        @modified_methods[key] = current_method if current_method && current_method != new_method
+      end
     end
   end
 
@@ -193,7 +233,9 @@ module RealityMarble
       # Store the methods that were defined
       marble.store_defined_methods(before_methods)
 
-      # Immediately remove the defined methods so they're only active during activate
+      # Immediately apply then remove the defined methods so they're only active during activate
+      # (We apply to track them in @applied_methods, then immediately clean up)
+      marble.apply_defined_methods
       marble.cleanup_defined_methods
     end
     marble

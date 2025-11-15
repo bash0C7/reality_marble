@@ -304,4 +304,83 @@ class MethodLifecycleTest < RealityMarbleTestCase
     assert_respond_to marble, :call_history
     assert marble.call_history.is_a?(Hash)
   end
+
+  def test_nested_activation_with_same_method
+    test_class = Class.new
+
+    marble1 = RealityMarble.chant do
+      test_class.define_singleton_method(:value) { "marble1" }
+    end
+
+    marble2 = RealityMarble.chant do
+      test_class.define_singleton_method(:value) { "marble2" }
+    end
+
+    # Nested activation where both marbles modify the same method
+    marble1.activate do
+      assert_equal "marble1", test_class.value
+
+      marble2.activate do
+        assert_equal "marble2", test_class.value
+      end
+
+      # After marble2 cleanup, marble1's version should be restored
+      assert_equal "marble1", test_class.value
+    end
+
+    # After both cleanup, method should not exist
+    assert_raises(NoMethodError) { test_class.value }
+  end
+
+  def test_nested_activation_with_different_methods
+    test_class = Class.new
+
+    marble1 = RealityMarble.chant do
+      test_class.define_singleton_method(:method_a) { "a" }
+    end
+
+    marble2 = RealityMarble.chant do
+      test_class.define_singleton_method(:method_b) { "b" }
+    end
+
+    marble1.activate do
+      assert_equal "a", test_class.method_a
+
+      marble2.activate do
+        assert_equal "b", test_class.method_b
+      end
+
+      # marble2's method should be removed after cleanup
+      assert_raises(NoMethodError) { test_class.method_b }
+      # marble1's method should still be available
+      assert_equal "a", test_class.method_a
+    end
+
+    # After both cleanup, both methods should not exist
+    assert_raises(NoMethodError) { test_class.method_a }
+    assert_raises(NoMethodError) { test_class.method_b }
+  end
+
+  def test_applied_methods_tracking
+    test_class = Class.new
+
+    marble = RealityMarble.chant do
+      test_class.define_singleton_method(:test_method) { "test" }
+    end
+
+    # After chant, applied_methods should be tracked
+    # (chant applies then immediately cleans up, so @applied_methods will have been set)
+    assert_respond_to marble, :instance_variable_get
+    applied = marble.instance_variable_get(:@applied_methods)
+    assert applied.is_a?(Set)
+
+    # After activate, methods should be applied
+    marble.activate do
+      # Inside activate, method should be available
+      assert_equal "test", test_class.test_method
+    end
+
+    # After activate, method should be removed
+    assert_raises(NoMethodError) { test_class.test_method }
+  end
 end
