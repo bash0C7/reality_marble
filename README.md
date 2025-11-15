@@ -4,18 +4,26 @@ Next-generation mock/stub library for Ruby 3.4+
 
 ## Overview
 
-**Reality Marble** (固有結界) is a modern mock/stub library that creates isolated, lexically-scoped test doubles for Ruby 3.4+. Inspired by TYPE-MOON's metaphor, it creates a temporary "reality" where method behaviors are overridden only within specific test scopes.
+**Reality Marble** (固有結界 - "fixed boundary") is a modern mock/stub library for Ruby 3.4+. Inspired by TYPE-MOON's Fate series, it creates a temporary "reality" where method behaviors are overridden only within specific test scopes.
 
-The new native syntax API lets you define mocks using Ruby's native `define_method` syntax, making tests more readable and maintainable.
+**Like Fate's magic**: A Reality Marble is a bounded field that overwrites reality with the caster's inner world. When the boundary dissolves, reality returns to normal. In testing:
+
+- **`chant`**: Define your alternative reality (write mock methods using native Ruby)
+- **`activate`**: Enter that reality (mocks are ONLY active in this block)
+- **Block exit**: Reality dissolves (all mocks automatically removed, original methods restored)
+
+**Pure Ruby, no DSL**: Just use `define_method`/`define_singleton_method` directly. No custom syntax to learn.
+
+**Perfect isolation**: Mocks never leak between tests. Every test gets a clean slate.
 
 Key features:
+- 🎭 **Fate's Reality Marble Philosophy**: Temporary reality that vanishes cleanly
 - 🎯 **Native Ruby Syntax**: Use `define_method` directly, no custom DSL
-- 🎯 **Lexically scoped**: Mocks are isolated to specific test contexts
-- 🚀 **Ruby 3.4+**: Leverages modern Ruby features
-- 🧪 **Test::Unit focused**: Designed for Test::Unit workflow (but framework-agnostic)
-- 🔒 **Thread-safe**: Safe for concurrent test execution
+- ✨ **Perfect Isolation**: Mocks completely removed after `activate` block (zero leakage)
+- 🧪 **Test::Unit focused**: Works with Test::Unit, RSpec, or any framework
+- 🔒 **Thread-safe**: Each thread has its own mock Context
 - 📝 **Simple API**: `chant` to define, `activate` to execute
-- 📦 **Variable Capture**: mruby/c-style `capture:` option for passing variables into blocks
+- 📦 **Variable Capture**: mruby/c-style `capture:` option for easy before/after verification
 
 ## Requirements
 

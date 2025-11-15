@@ -1,68 +1,73 @@
 # Reality Marble API Reference
 
+Complete API documentation for Reality Marble v2.0.
+
 ## Module Methods
 
-### RealityMarble.chant(&block)
+### RealityMarble.chant(capture: nil, &block)
 
-Create a new Reality Marble and define expectations.
+Create a new Reality Marble and define method mocks using native Ruby syntax.
 
 **Parameters:**
-- `block` (optional): Block to execute in the context of a new Marble instance
+- `capture` (Hash, optional): Variables to pass into the block for state tracking
+- `block`: Block to execute in the context of a new Marble instance
 
 **Returns:**
-- `Marble` instance
+- `Marble` instance (call `.activate` to use the mocks)
 
 **Example:**
 ```ruby
 marble = RealityMarble.chant do
-  expect(File, :exist?) { |path| path == '/tmp/test' }
-  expect(File, :read) { |path| "mock content" }
+  File.define_singleton_method(:exist?) do |path|
+    path == '/mock/path'
+  end
+
+  MyClass.define_method(:save) do
+    true
+  end
 end
-```
-
----
-
-### RealityMarble.mock(target_class, method_name, &block)
-
-Convenience helper for simple inline mocking (no chant/activate boilerplate).
-
-Activates immediately; deactivate via `Context.reset_current` (usually in teardown).
-
-**Parameters:**
-- `target_class` [Class, Module]: Class to mock
-- `method_name` [Symbol]: Method name to mock
-- `block`: Mock implementation (optional)
-
-**Returns:**
-- `Marble` instance (for call history inspection if needed)
-
-**Example:**
-```ruby
-RealityMarble.mock(File, :exist?) { |path| path == '/tmp/test' }
-assert File.exist?('/tmp/test')
 ```
 
 ---
 
 ## Marble Class
 
-### marble.expect(target_class, method_name, &block)
+### RealityMarble.chant(capture: {...}) { |cap| ... }
 
-Define an expectation for a method.
+Define mocks and capture objects for verification.
+
+**How It Works:**
+
+1. **Detection Phase**: All methods defined via `define_method`/`define_singleton_method` are automatically detected using ObjectSpace inspection
+2. **Storage Phase**: Detected methods are immediately removed and stored as UnboundMethod objects
+3. **Activation Phase**: Stored methods are restored only when `.activate` is called
+4. **Cleanup Phase**: Methods are automatically removed when the activate block exits
 
 **Parameters:**
-- `target_class` [Class, Module]: Class/module to mock
-- `method_name` [Symbol]: Method name to mock
-- `block`: Optional mock implementation (receives method arguments)
+- `capture` (Hash): Variables to pass as a hash available in the block
 
-**Returns:**
-- `Expectation` instance (for chaining DSL methods)
+**Block Parameter:**
+- `cap` (Hash): Access to the captured variables
 
-**Example:**
+**Example with capture:**
 ```ruby
-marble = RealityMarble.chant do
-  expect(File, :exist?) { |path| path == '/tmp/test' }
+state = { called: false, args: nil }
+
+marble = RealityMarble.chant(capture: { state: state }) do |cap|
+  Kernel.define_method(:system) do |cmd|
+    cap[:state][:called] = true
+    cap[:state][:args] = cmd
+    true
+  end
 end
+
+marble.activate do
+  system('git clone https://example.com/repo.git')
+end
+
+# Verify state
+assert state[:called]
+assert_match /git clone/, state[:args]
 ```
 
 ---
@@ -72,8 +77,8 @@ end
 Get all recorded calls to a mocked method.
 
 **Parameters:**
-- `target_class` [Class, Module]: Class to look up
-- `method_name` [Symbol]: Method name
+- `target_class` (Class, Module): Class/module to look up
+- `method_name` (Symbol): Method name
 
 **Returns:**
 - `Array<CallRecord>` - List of all calls (empty if not mocked or not called)
@@ -81,34 +86,28 @@ Get all recorded calls to a mocked method.
 **Example:**
 ```ruby
 marble = RealityMarble.chant do
-  expect(Logger, :info) { nil }
+  Logger.define_singleton_method(:info) { |msg| nil }
 end.activate do
-  Logger.info("message1")
-  Logger.info("message2")
+  Logger.info("Started")
+  Logger.info("Completed")
 end
 
 calls = marble.calls_for(Logger, :info)
 assert_equal 2, calls.length
-assert_equal "message1", calls[0].args[0]
-assert_equal "message2", calls[1].args[0]
+assert_equal "Started", calls[0].args[0]
+assert_equal "Completed", calls[1].args[0]
 ```
 
 ---
 
 ### marble.activate(&block)
 
-Activate the Reality Marble for the duration of the block.
+Activate the mocks defined in the chant block.
 
-During activation:
-- All expectations become active
-- Original methods are backed up (if first marble)
-- Mock methods are installed
-- Test code executes
-
-After the block:
-- Mocks are removed
-- Original methods are restored (if last marble)
-- call_history is preserved
+**How It Works:**
+1. Stored mock methods are restored
+2. Test code executes (mocks are active)
+3. All mocks are automatically removed when block exits (via ensure)
 
 **Parameters:**
 - `block`: Test code to execute
@@ -119,121 +118,117 @@ After the block:
 **Example:**
 ```ruby
 result = marble.activate do
-  File.exist?('/tmp/test')  # Calls mock
+  File.exist?('/mock/path')  # Calls mock
 end
 assert_equal true, result
 ```
 
 ---
 
-## Expectation Class
+## Native Syntax Examples
 
-### expectation.with(*args)
+### Singleton Method Mocking
 
-Match against specific arguments.
+Mock class-level methods using `define_singleton_method`:
 
-**Parameters:**
-- `args`: Arguments to match exactly
-
-**Returns:**
-- self (for method chaining)
-
-**Example:**
 ```ruby
-expect(Foo, :bar)
-  .with(1, 2)
-  .returns(3)
+RealityMarble.chant do
+  File.define_singleton_method(:exist?) do |path|
+    path == '/mock/path'
+  end
+end.activate do
+  assert File.exist?('/mock/path')
+  refute File.exist?('/other/path')
+end
 ```
 
----
+### Instance Method Mocking
 
-### expectation.with_any
+Mock instance-level methods using `define_method`:
 
-Match against any arguments.
-
-**Returns:**
-- self (for method chaining)
-
-**Example:**
 ```ruby
-expect(Logger, :info)
-  .with_any
-  .returns(nil)
+RealityMarble.chant do
+  User.define_method(:save) do
+    @saved = true
+  end
+end.activate do
+  user = User.new
+  assert user.save
+end
 ```
 
----
+### Conditional Mock Logic
 
-### expectation.returns(*values)
+Use Ruby conditionals directly in mock definitions:
 
-Set return value(s) for this expectation.
-
-**Parameters:**
-- `values`: Single value or sequence of values
-  - Single value: always returns that value
-  - Multiple values: returns values in sequence (cycles if exhausted)
-
-**Returns:**
-- self (for method chaining)
-
-**Example:**
 ```ruby
-# Single value
-expect(File, :exist?)
-  .with('/tmp/test')
-  .returns(true)
+RealityMarble.chant do
+  MyAPI.define_singleton_method(:fetch) do |url|
+    if url =~ /valid/
+      { success: true, data: "content" }
+    else
+      raise ArgumentError, "Invalid URL"
+    end
+  end
+end.activate do
+  result = MyAPI.fetch('/valid/resource')
+  assert result[:success]
 
-# Sequence
-expect(Counter, :next)
-  .with_any
-  .returns(1, 2, 3, 1, 2, 3, ...)  # Cycles
+  assert_raises(ArgumentError) { MyAPI.fetch('/invalid') }
+end
 ```
 
----
+### State Capture and Verification
 
-### expectation.raises(exception_class, message = nil)
+Track method calls and capture state using the `capture:` option:
 
-Raise an exception when expectation is matched.
-
-**Parameters:**
-- `exception_class` [Class]: Exception class to raise
-- `message` [String, optional]: Exception message
-
-**Returns:**
-- self (for method chaining)
-
-**Example:**
 ```ruby
-expect(Database, :connect)
-  .with_any
-  .raises(ConnectionError, "Connection refused")
+call_log = []
+
+RealityMarble.chant(capture: { log: call_log }) do |cap|
+  Logger.define_singleton_method(:info) do |message, level = :info|
+    cap[:log] << { message: message, level: level }
+  end
+end.activate do
+  Logger.info("Started", :debug)
+  Logger.info("Completed", :info)
+end
+
+# Verify
+assert_equal 2, call_log.length
+assert_equal "Started", call_log[0][:message]
+assert_equal :debug, call_log[0][:level]
 ```
 
----
+### Nested Mocks
 
-### expectation.matches?(args)
+Define multiple mocks in one chant block:
 
-Check if given arguments match this expectation's matchers.
-
-(Usually called internally by Reality Marble framework)
-
-**Parameters:**
-- `args` [Array]: Arguments to test
-
-**Returns:**
-- Boolean
-
-**Example:**
 ```ruby
-exp = expect(Foo, :bar).with(1, 2)
-assert exp.matches?([1, 2])
-refute exp.matches?([2, 3])
+RealityMarble.chant do
+  File.define_singleton_method(:exist?) do |path|
+    path.start_with?('/mock')
+  end
+
+  File.define_singleton_method(:read) do |path|
+    "mock content"
+  end
+
+  FileUtils.define_singleton_method(:mkdir_p) do |dir|
+    true
+  end
+end.activate do
+  assert File.exist?('/mock/file')
+  assert_equal "mock content", File.read('/mock/file')
+  FileUtils.mkdir_p('/mock/dir')
+end
 ```
 
 ---
 
 ## CallRecord Class
 
-Represents a single method call in call_history.
+Represents a single method call recorded in call history.
 
 ### call_record.args
 
@@ -245,7 +240,7 @@ Array of positional arguments passed to the method.
 **Example:**
 ```ruby
 calls = marble.calls_for(Logger, :info)
-puts calls[0].args[0]  # First argument to first call
+message = calls[0].args[0]  # First argument of first call
 ```
 
 ---
@@ -260,7 +255,7 @@ Hash of keyword arguments passed to the method.
 **Example:**
 ```ruby
 calls = marble.calls_for(API, :fetch)
-puts calls[0].kwargs[:timeout]  # Keyword argument value
+timeout = calls[0].kwargs[:timeout]  # Keyword argument value
 ```
 
 ---
@@ -289,27 +284,40 @@ Reset the thread-local context (useful for test teardown).
 ```ruby
 # In test teardown
 def teardown
-  Context.reset_current
+  RealityMarble::Context.reset_current
 end
 ```
 
 ---
 
-## Full Example
+## Complete Example
 
 ```ruby
 require 'reality_marble'
+require 'test-unit'
 
 class FileServiceTest < Test::Unit::TestCase
-  def test_file_service_with_multiple_expectations
-    # Define expectations
-    marble = RealityMarble.chant do
-      expect(File, :exist?) { |path| path == '/important/file' }
-      expect(File, :read) { |path| "Mocked content" }
-      expect(FileUtils, :mkdir_p) { |dir| true }
+  def test_file_service_with_native_syntax
+    # Track state across method calls
+    operations = []
+
+    marble = RealityMarble.chant(capture: { ops: operations }) do |cap|
+      File.define_singleton_method(:exist?) do |path|
+        cap[:ops] << { op: :exist?, path: path }
+        path == '/important/file'
+      end
+
+      File.define_singleton_method(:read) do |path|
+        cap[:ops] << { op: :read, path: path }
+        "Mocked content"
+      end
+
+      FileUtils.define_singleton_method(:mkdir_p) do |dir|
+        cap[:ops] << { op: :mkdir_p, dir: dir }
+        true
+      end
     end
 
-    # Activate and test
     marble.activate do
       assert File.exist?('/important/file')
       refute File.exist?('/other/file')
@@ -317,13 +325,16 @@ class FileServiceTest < Test::Unit::TestCase
       FileUtils.mkdir_p('/new/dir')
     end
 
-    # Inspect call history
+    # Verify call history
+    assert_equal 4, operations.length
+    assert_equal :exist?, operations[0][:op]
+    assert_equal '/important/file', operations[0][:path]
+
     mkdir_calls = marble.calls_for(FileUtils, :mkdir_p)
     assert_equal 1, mkdir_calls.length
     assert_equal '/new/dir', mkdir_calls[0].args[0]
   end
 
-  # Cleanup
   def teardown
     RealityMarble::Context.reset_current
   end
@@ -332,59 +343,44 @@ end
 
 ---
 
-## DSL Chaining Examples
+## Method Detection
 
-### Exact Match with Return Value
-```ruby
-expect(Calculator, :add)
-  .with(2, 3)
-  .returns(5)
+Reality Marble automatically detects method definitions using ObjectSpace inspection:
+
+### What Gets Detected
+
+✅ Singleton methods via `Class.define_singleton_method(:name) { ... }`
+✅ Instance methods via `Class.define_method(:name) { ... }`
+✅ Multiple method definitions in one chant block
+✅ Nested method definitions
+
+### How It Works
+
 ```
-
-### Any Arguments with Return Value
-```ruby
-expect(Logger, :info)
-  .with_any
-  .returns(nil)
+1. Before chant block: Snapshot all existing methods via ObjectSpace
+2. Execute chant block: User defines new methods via define_method
+3. After chant block: Snapshot methods again and compute diff
+4. Store: Save new methods as UnboundMethod objects
+5. Remove: Delete methods from the system (they're only in storage)
+6. On activate: Restore only during test block
+7. On cleanup: Remove again automatically
 ```
-
-### Exact Match with Block
-```ruby
-expect(Array, :map) do |&block|
-  [1, 2, 3].map(&block)
-end
-```
-
-### Exception on Match
-```ruby
-expect(Database, :connect)
-  .with_any
-  .raises(ConnectionError, "Connection failed")
-```
-
----
-
-## Error Handling
-
-### NoMethodError (Method Not Defined)
-If you try to mock a method that doesn't exist on the class, a warning is issued:
-```
-⚠️  Warning: Mocking non-existent method MyClass#undefined_method (no original to restore)
-```
-The mock is still created, but no original method exists to restore.
 
 ---
 
 ## Thread Safety
 
-Reality Marble is thread-safe:
+Reality Marble is fully thread-safe:
+
 - Each thread has its own `Context.current`
 - Mocks in one thread don't affect other threads
 - Nested marbles are safe within a thread
 
 ```ruby
 Thread.new do
-  RealityMarble.chant { expect(...) }.activate do
+  RealityMarble.chant do
+    File.define_singleton_method(:read) { "thread A" }
+  end.activate do
     # Only affects this thread
   end
 end
@@ -392,13 +388,29 @@ end
 Thread.new do
   # This thread has its own Context
   # Previous marble doesn't affect here
+  File.read('/path')  # Uses original
 end
 ```
 
 ---
 
+## Key Features of v2.0
+
+| Feature | Implementation |
+|---------|----------------|
+| **Native Syntax** | Use Ruby's standard `define_method`/`define_singleton_method` |
+| **No DSL** | Zero custom syntax - pure Ruby |
+| **Perfect Isolation** | Methods automatically removed after activate block |
+| **State Capture** | `capture:` option for before/after verification |
+| **Call History** | `calls_for()` tracks all method invocations |
+| **Thread Safe** | Thread-local Context stack |
+| **Framework Agnostic** | Works with Test::Unit, RSpec, or any framework |
+| **Nested Support** | Multiple marbles can be active simultaneously |
+
+---
+
 ## Version Information
 
-- **Reality Marble**: 0.1.0+
+- **Reality Marble**: 2.0.0+
 - **Ruby**: 3.4+
 - **No External Dependencies**: Pure Ruby implementation
