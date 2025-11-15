@@ -20,10 +20,12 @@ Key features:
 - 🎭 **Fate's Reality Marble Philosophy**: Temporary reality that vanishes cleanly
 - 🎯 **Native Ruby Syntax**: Use `define_method` directly, no custom DSL
 - ✨ **Perfect Isolation**: Mocks completely removed after `activate` block (zero leakage)
+- 🔗 **Nested Activation**: Multiple marbles can activate within each other with full method isolation
 - 🧪 **Test::Unit focused**: Works with Test::Unit, RSpec, or any framework
 - 🔒 **Thread-safe**: Each thread has its own mock Context
 - 📝 **Simple API**: `chant` to define, `activate` to execute
 - 📦 **Variable Capture**: mruby/c-style `capture:` option for easy before/after verification
+- 📊 **Comprehensive Coverage**: 90%+ line/branch coverage with 24 test cases
 
 ## Requirements
 
@@ -152,6 +154,41 @@ class UserTest < Test::Unit::TestCase
 end
 ```
 
+### Advanced: Nested Activation
+
+Multiple marbles can be activated within each other with full isolation:
+
+```ruby
+class NestedMockTest < Test::Unit::TestCase
+  def test_nested_mocking
+    api = Class.new
+
+    marble1 = RealityMarble.chant do
+      api.define_singleton_method(:fetch) { "response_v1" }
+    end
+
+    marble2 = RealityMarble.chant do
+      api.define_singleton_method(:fetch) { "response_v2" }
+    end
+
+    marble1.activate do
+      assert_equal "response_v1", api.fetch
+
+      # Inner marble overrides outer marble
+      marble2.activate do
+        assert_equal "response_v2", api.fetch
+      end
+
+      # Outer marble's version restored after inner cleanup
+      assert_equal "response_v1", api.fetch
+    end
+
+    # Both cleaned up, original restored
+    assert_raises(NoMethodError) { api.fetch }
+  end
+end
+```
+
 ## API Reference
 
 ### RealityMarble.chant
@@ -210,15 +247,22 @@ end
 
 ## How It Works
 
-Reality Marble uses three key mechanisms:
+Reality Marble uses advanced mechanisms to provide perfect mock isolation:
 
-1. **Method Definition Detection**: When you call `chant`, the library detects which methods you define using `define_method`.
+1. **Method Definition Detection**: When you call `chant`, the library uses ObjectSpace scanning to detect all methods defined during the block execution, including both new methods and modifications to existing methods.
 
-2. **Lazy Application**: The defined methods are removed after the chant block, then reapplied during `activate` so mocks are only active when needed.
+2. **Lazy Application Pattern**: The defined methods are removed immediately after the chant block, then reapplied only during `activate`. This ensures mocks are only active when needed and prevents any accidental leakage.
 
-3. **Automatic Cleanup**: After the activate block exits, all mocks are removed and original methods are restored.
+3. **Method Lifecycle Tracking**: Each marble tracks which methods it applied via `@applied_methods` to ensure proper cleanup even in nested scenarios.
 
-This ensures mocks don't leak across tests and maintain perfect isolation.
+4. **Nested Activation Support**: When marbles are activated within each other:
+   - Inner marble detects outer marble's applied methods via `adjust_for_nested_activation`
+   - Tracks outer methods as "modified" to restore them after inner cleanup
+   - Perfect isolation maintained at each nesting level
+
+5. **Automatic Cleanup**: After the activate block exits, all mocks are removed and original methods (including those modified by outer marbles) are restored correctly.
+
+This ensures mocks never leak across tests and maintain perfect isolation even with complex nested scenarios.
 
 ## Thread Safety
 
