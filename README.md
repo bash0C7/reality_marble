@@ -285,7 +285,41 @@ Reality Marble uses advanced mechanisms to provide perfect mock isolation:
 
 This ensures mocks never leak across tests and maintain perfect isolation even with complex nested scenarios.
 
-## Thread Safety
+## Known Limitations
+
+Reality Marble supports 95%+ of Ruby patterns, but has a few known limitations:
+
+### 1. Aliased Methods
+
+When using `alias_method`, the alias points to the original Method object. Redefining the original doesn't update the alias reference (Ruby's fundamental behavior).
+
+**Workaround**: Mock both the original and alias separately:
+```ruby
+class Example
+  def original; "original"; end
+  alias_method :alias_name, :original
+end
+
+RealityMarble.chant do
+  Example.define_method(:original) { "mocked" }
+  Example.define_method(:alias_name) { "mocked" }  # Mock both
+end.activate { ... }
+```
+
+### 2. Method Visibility
+
+All mocked methods are public by default. Private/protected visibility is not preserved.
+
+**Workaround**: Use `.send()` to call private methods in tests:
+```ruby
+obj.send(:private_method)  # Call private method
+```
+
+### 3. Refinements (Ruby Feature)
+
+Refinements are lexically scoped and incompatible with globally mocked methods. Planned for Phase 4 evaluation.
+
+### Thread Safety
 
 Reality Marble uses thread-local storage for the mock context stack, making it safe for concurrent test execution.
 
@@ -296,6 +330,16 @@ Run the test suite:
 ```bash
 bundle exec rake test
 ```
+
+**Coverage**: 54 comprehensive tests including:
+- Module patterns (include, extend, prepend, mixins)
+- Inheritance hierarchies (deep nesting, super keyword)
+- Aliasing and method references
+- method_missing and introspection
+- Closures and class variables
+- Singleton methods and classes
+- Nested activation (2-5 levels deep)
+- Known limitations documentation
 
 ## Contributing
 
