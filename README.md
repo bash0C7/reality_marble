@@ -84,9 +84,11 @@ class FileOperationsTest < Test::Unit::TestCase
 end
 ```
 
-### Using capture: for Variable Passing
+### Optional: Using capture: for Variable Passing
 
-Pass local variables into the mock block using `capture:` (mruby/c style):
+To explicitly pass variables into the mock block, use the `capture:` option:
+
+Note: Variables are available through normal closures. Use `capture:` when you want to explicitly pass them into the mock block for clarity.
 
 ```ruby
 class GitCommandTest < Test::Unit::TestCase
@@ -111,8 +113,6 @@ class GitCommandTest < Test::Unit::TestCase
   end
 end
 ```
-
-Note: In standard mruby, variables are automatically in scope. But in mruby/c (and this implementation), the `capture:` option provides that functionality.
 
 ### Mocking Multiple Methods
 
