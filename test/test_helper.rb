@@ -1,5 +1,6 @@
 # カバレッジ測定の開始（他のrequireより前に実行）
 require "simplecov"
+SimpleCov.root File.expand_path("../", __dir__)
 SimpleCov.start do
   add_filter "/test/"
   add_filter "/vendor/"

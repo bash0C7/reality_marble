@@ -1,5 +1,5 @@
 # Coverage reports
-/coverage/
+coverage/
 
 # Ruby gems
 *.gem
@@ -8,6 +8,16 @@
 
 # RuboCop cache
 /.rubocop_cache/
+
+# Bundler
+/.bundle/
+/vendor/bundle/
+
+# Development playground
+/playground/
+
+# Environment-specific directories
+/ptrk_env/
 
 # IDE
 .idea/
