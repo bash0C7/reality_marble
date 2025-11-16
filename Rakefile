@@ -13,8 +13,9 @@ task :test do
 
   # Run tests using ruby -I flags and require 'bundler/setup'
   # This avoids issues with bundle exec picking up parent Gemfile
-  system("ruby", "-W1", "-I", "lib", "-I", "test",
-         "-e", "require 'bundler/setup'; require 'test_helper'; Dir.glob('test/**/*_test.rb').sort.each { |f| require_relative(f) }")
+  ruby_code = "require 'bundler/setup'; require 'test_helper'; " \
+              "Dir.glob('test/**/*_test.rb').sort.each { |f| require_relative(f) }"
+  system("ruby", "-W1", "-I", "lib", "-I", "test", "-e", ruby_code)
 
   exit($CHILD_STATUS.exitstatus) unless $CHILD_STATUS.success?
 end
