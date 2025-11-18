@@ -7,6 +7,7 @@ AllCops:
     - ".cache/**/*"
     - "examples/**/*"  # Documentation code examples
     - "test/**/*"      # Test files - allow complex/non-standard code for edge case testing
+    - "**/*.md"        # Markdown documentation files
 
 plugins:
   - rubocop-performance

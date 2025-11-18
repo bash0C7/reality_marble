@@ -201,18 +201,20 @@ module RealityMarble
 
       after_methods.each do |key, after_method|
         target, = key
-        # Warn if method is being defined in a Refinement
-        warn_if_refinement(target)
 
         if before_methods.key?(key)
           before_method = before_methods[key]
           # Method オブジェクトが異なれば、上書きされている
           if before_method != after_method
+            # Warn only if the method is being modified (changed)
+            warn_if_refinement(target)
             modified_methods[key] = before_method
             # activate 中に新しい実装を apply するために @defined_methods に保存
             new_methods[key] = after_method
           end
         else
+          # Warn only if the method is newly defined
+          warn_if_refinement(target)
           new_methods[key] = after_method
         end
       end

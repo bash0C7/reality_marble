@@ -102,15 +102,22 @@ This pattern avoids the complexity of the old Expectation DSL while maintaining 
 2. **After GREEN phase** (test passes):
    - Test code is now complete: `bundle exec rake test` (should pass)
    - **RUN IMMEDIATELY**: `bundle exec rubocop -A` (auto-correct all violations)
+   - **CRITICAL**: Run tests again after RuboCop: `bundle exec rake test`
+     - RuboCop modifications may affect code behavior (edge cases)
+     - Verify tests still pass with the same coverage
+     - If coverage/tests change, refactor RuboCop output instead of reverting
 
 3. **Refactor phase** (improve code quality):
    - Refactor implementation for clarity and simplicity
    - After refactoring: **RUN AGAIN**: `bundle exec rubocop -A` (re-check style)
+   - **CRITICAL**: Run tests again: `bundle exec rake test` (verify no behavior change)
 
 4. **Before every commit**:
+   - Verify tests pass: `bundle exec rake test` (should be passing)
    - Verify `bundle exec rubocop` returns **0 violations** (exit 0)
-   - Verify `bundle exec rake test` passes (exit 0)
+   - Verify coverage: `bundle exec rake ci` (line ≥ 75%, branch ≥ 55%)
    - If any violations remain after `-A`, refactor instead of adding `# rubocop:disable`
+   - Never commit if tests changed behavior after RuboCop (investigate first)
 
 **Quality Gates (ALL must pass before commit)**:
 - ✅ Tests pass: `bundle exec rake test`
@@ -122,6 +129,8 @@ This pattern avoids the complexity of the old Expectation DSL while maintaining 
 - 🚫 Write fake tests (empty, trivial assertions)
 - 🚫 Commit with RuboCop violations
 - 🚫 Lower coverage thresholds
+- 🚫 Skip test verification after RuboCop (always re-run `bundle exec rake test`)
+- 🚫 Commit if test behavior changes after RuboCop (investigate and refactor)
 
 ### Coverage Thresholds
 
