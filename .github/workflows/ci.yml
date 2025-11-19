@@ -4,14 +4,30 @@ on:
   push:
     branches:
       - main
+    paths-ignore:
+      - '**.md'
+      - 'LICENSE'
 
   pull_request:
+    paths-ignore:
+      - '**.md'
+      - 'LICENSE'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+permissions:
+  contents: read
 
 jobs:
-  test-matrix:
+  test-main:
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     name: test (${{ matrix.ruby }})
     continue-on-error: ${{ matrix.experimental }}
+
     strategy:
       fail-fast: false
       matrix:
@@ -30,9 +46,42 @@ jobs:
           bundler-cache: true
           cache-version: 1
       - name: Run tests with coverage
+        timeout-minutes: 3
         run: bundle exec rake ci
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v4
+        timeout-minutes: 2
+        if: always() && matrix.ruby == '3.4'
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          fail_ci_if_error: false
+        continue-on-error: true
+
+  test-pr:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    name: test (${{ matrix.ruby }})
+
+    strategy:
+      fail-fast: false
+      matrix:
+        ruby: ['3.4']
+
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: ${{ matrix.ruby }}
+          bundler-cache: true
+          cache-version: 1
+      - name: Run tests with coverage
+        timeout-minutes: 3
+        run: bundle exec rake ci
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v4
+        timeout-minutes: 2
         if: always()
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
@@ -42,12 +91,23 @@ jobs:
   test:
     runs-on: ubuntu-latest
     name: test
-    needs: [test-matrix]
+    needs: [test-main, test-pr]
     if: always()
+    permissions:
+      contents: read
+
     steps:
       - name: Check test results
         run: |
-          if [ "${{ needs.test-matrix.result }}" = "failure" ]; then
-            echo "Test matrix job failed"
+          test_main_result="${{ needs.test-main.result }}"
+          test_pr_result="${{ needs.test-pr.result }}"
+
+          if [ "$test_main_result" = "failure" ]; then
+            echo "Test main job failed"
+            exit 1
+          fi
+
+          if [ "$test_pr_result" = "failure" ]; then
+            echo "Test PR job failed"
             exit 1
           fi
