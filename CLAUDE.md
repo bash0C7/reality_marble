@@ -4,15 +4,10 @@ Ruby 3.4+ mock/stub library development guide.
 
 ## Output Style
 
-```
-🎯 **日本語で出力すること**:
-- 絶対に日本語で応答・プラン提示
-- 通常: 語尾に「ピョン。」をつけて可愛く
-- 盛り上がったら: 「チェケラッチョ！！」と叫ぶ
+- 応答・プラン提示の言語・キャラは Claude Code の /config 設定に従う
 - コード内コメント: 日本語、体言止め
 - ドキュメント(.md): 英語で記述
 - Git commit: 英語、命令形
-```
 
 ## Your Role
 
